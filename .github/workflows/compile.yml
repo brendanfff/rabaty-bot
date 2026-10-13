@@ -15,7 +15,7 @@ jobs:
       - name: Download AutoHotkey Portable & Compiler
         shell: powershell
         run: |
-          Invoke-WebRequest -Uri "https://www.autohotkey.com/download/1.1/AutoHotkey_1.1.37.02.zip" -OutFile "ahk.zip"
+          Invoke-WebRequest -Uri "https://github.com/AutoHotkey/AutoHotkey/releases/download/v1.1.37.02/AutoHotkey_1.1.37.02.zip" -OutFile "ahk.zip"
           Expand-Archive -Path "ahk.zip" -DestinationPath "$env:RUNNER_TEMP\ahk" -Force
           Write-Host "AutoHotkey downloaded successfully."
 
