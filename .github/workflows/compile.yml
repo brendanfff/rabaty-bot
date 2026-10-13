@@ -12,11 +12,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Compile AHK Script
-        uses: tamo/action-Ahk2Exe@v1
-        with:
-          in: Rabaty.ahk
-          out: Rabaty.exe
+      - name: Download AutoHotkey Portable & Compiler
+        shell: powershell
+        run: |
+          Invoke-WebRequest -Uri "https://www.autohotkey.com/download/1.1/AutoHotkey_1.1.37.02.zip" -OutFile "ahk.zip"
+          Expand-Archive -Path "ahk.zip" -DestinationPath "$env:RUNNER_TEMP\ahk" -Force
+          Write-Host "AutoHotkey downloaded successfully."
+
+      - name: Compile AHK Script to EXE
+        shell: powershell
+        run: |
+          $ahk2exe = "$env:RUNNER_TEMP\ahk\Compiler\Ahk2Exe.exe"
+          $bin = "$env:RUNNER_TEMP\ahk\Compiler\Unicode 32-bit.bin"
+          & $ahk2exe /in "Rabaty.ahk" /out "Rabaty.exe" /bin $bin
+          if (Test-Path "Rabaty.exe") {
+              Write-Host "Rabaty.exe compiled successfully!"
+          } else {
+              throw "Compilation failed!"
+          }
 
       - name: Upload compiled EXE artifact
         uses: actions/upload-artifact@v4
