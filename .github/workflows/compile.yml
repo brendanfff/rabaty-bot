@@ -25,11 +25,22 @@ jobs:
           $ahk2exe = "$env:RUNNER_TEMP\ahk\Compiler\Ahk2Exe.exe"
           $bin = "$env:RUNNER_TEMP\ahk\Compiler\Unicode 32-bit.bin"
           & $ahk2exe /in "Rabaty.ahk" /out "Rabaty.exe" /bin $bin
-          if (Test-Path "Rabaty.exe") {
-              Write-Host "Rabaty.exe compiled successfully!"
-          } else {
-              throw "Compilation failed!"
+          if ($LASTEXITCODE -ne 0) {
+              throw "Ahk2Exe exited with code $LASTEXITCODE."
           }
+
+          $maxWaitSeconds = 15
+          $elapsed = 0
+          while (-not (Test-Path "Rabaty.exe") -and $elapsed -lt $maxWaitSeconds) {
+              Start-Sleep -Seconds 1
+              $elapsed++
+          }
+
+          if (-not (Test-Path "Rabaty.exe")) {
+              throw "Compilation failed: Rabaty.exe was not created within $maxWaitSeconds seconds."
+          }
+
+          Write-Host "Rabaty.exe compiled successfully!"
 
       - name: Upload compiled EXE artifact
         uses: actions/upload-artifact@v4
