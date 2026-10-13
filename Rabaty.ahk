@@ -52,29 +52,27 @@ GlowneWprowadzanie()
         if (Fields.Length() < 3)
             continue
 
-        TotalValid++
         fID := Trim(Fields[1])
         fCena := Trim(Fields[2])
         fRabat := Trim(Fields[3])
 
         if (fRabat = "10")
+        {
             CountTens++
+            continue
+        }
 
+        TotalValid++
         FirmList.Push({"id": fID, "cena": fCena, "rabat": fRabat})
     }
 
     if (TotalValid == 0)
     {
-        MsgBox, 16, Blad, Brak poprawnych wierszy z firmami!
+        if (CountTens > 0)
+            MsgBox, 16, Blad, Wszystkie poprawne rekordy maja rabat 10 gr i zostaly pominiete.
+        else
+            MsgBox, 16, Blad, Brak poprawnych wierszy z firmami!
         return
-    }
-
-    Ratio := (CountTens / TotalValid) * 100
-    if (CountTens > 0 && Ratio >= 70)
-    {
-        MsgBox, 262180, OSTRZEZENIE: Wykryto karty PB (10 gr)!, Wykryto %CountTens% z %TotalValid% firm z rabatem 10 gr.`nPrawdopodobnie jest to lista BENZYNY (PB), a nie Diesla!`n`nCzy chcesz nadpisac WSZYSTKIE karty na liscie?`n`n[Tak] = Zmien mimo to`n[Nie] = Anuluj i zachowaj stare rabaty
-        IfMsgBox, No
-            return
     }
 
     SoundBeep, 1000, 150
@@ -114,5 +112,8 @@ GlowneWprowadzanie()
     }
 
     SoundBeep, 1200, 300
-    MsgBox, 64, Sukces, Pomyslnie przetworzono cala liste firm!
+    if (CountTens > 0)
+        MsgBox, 64, Sukces, Pomyslnie przetworzono cala liste firm!`nPominieto rekordow z rabatem 10 gr: %CountTens%.
+    else
+        MsgBox, 64, Sukces, Pomyslnie przetworzono cala liste firm!
 }
