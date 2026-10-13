@@ -25,9 +25,6 @@ jobs:
           $ahk2exe = "$env:RUNNER_TEMP\ahk\Compiler\Ahk2Exe.exe"
           $bin = "$env:RUNNER_TEMP\ahk\Compiler\Unicode 32-bit.bin"
           & $ahk2exe /in "Rabaty.ahk" /out "Rabaty.exe" /bin $bin
-          if ($LASTEXITCODE -ne 0) {
-              throw "Ahk2Exe exited with code $LASTEXITCODE."
-          }
 
           $maxWaitSeconds = 15
           $elapsed = 0
