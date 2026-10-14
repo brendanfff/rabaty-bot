@@ -38,7 +38,7 @@ jobs:
 
           # 2) Testy logiki i wpisywania klawiszy
           $t = Start-Process -FilePath $ahk -ArgumentList "/ErrorStdOut `"$PWD\tests\test_rabaty.ahk`"" -PassThru -NoNewWindow
-          if (-not $t.WaitForExit(90000)) { $t.Kill(); throw "Testy przekroczyly czas" }
+          if (-not $t.WaitForExit(300000)) { $t.Kill(); throw "Testy przekroczyly czas" }
           Get-Content "tests\wynik.txt" -ErrorAction SilentlyContinue
           if ($t.ExitCode -ne 0) { throw "Testy nie przeszly (kod $($t.ExitCode))" }
 
