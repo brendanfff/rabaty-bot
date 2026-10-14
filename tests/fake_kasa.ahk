@@ -1,44 +1,133 @@
-; Udawany program kasowy - zapisuje kazdy odebrany klawisz do kasa_log.txt
+; Udawany program kasowy: okno firm -> F10 lista kart -> F4 modyfikacja karty -> F10 zapis / Esc
 #NoEnv
 #SingleInstance Force
 SetWorkingDir, %A_ScriptDir%
-global Log := ""
-FileDelete, kasa_log.txt
-Gui, +AlwaysOnTop
-Gui, Add, Edit, w400 h300 Multi WantReturn WantTab
-Gui, Show, w420 h320, Kasa TEST
-OnMessage(0x100, "Klawisz")   ; WM_KEYDOWN
-OnMessage(0x104, "Klawisz")   ; WM_SYSKEYDOWN (F10)
-OnMessage(0x105, "SysUp")     ; WM_SYSKEYUP - blokada menu po F10
-OnMessage(0x102, "Znak")      ; WM_CHAR
-SetTimer, ZapiszLog, 200
+SetBatchLines, -1
+global Karty := {"1001": [5, 5, 5], "1002": [7], "1003": [20, 3]}
+global Firma := "", Sel := 1, Zapisy := 0
+global FirmyHwnd := 0, ListaHwnd := 0, KartaHwnd := 0
+
+Gui, Firmy:New, +HwndFirmyHwnd, Kasa TEST - Firmy
+Gui, Firmy:Add, Edit, vSzukaj w300
+Gui, Firmy:Show, x100 y100 w320 h60
+OnMessage(0x100, "Klawisz")
+OnMessage(0x104, "Klawisz")
+OnMessage(0x105, "SysUp")
+SetTimer, ZapiszStan, 150
 return
 
-ZapiszLog:
-FileDelete, kasa_log.txt
-FileAppend, %Log%, kasa_log.txt
+ZapiszStan:
+s := ""
+for id, k in Karty
+{
+    r := ""
+    for i, v in k
+        r .= (i > 1 ? "," : "") v
+    s .= (s == "" ? "" : "|") id "=" r
+}
+WinGetTitle, akt, A
+s .= "`nZapisy=" Zapisy "`nLista=" (ListaHwnd ? 1 : 0) "`nKarta=" (KartaHwnd ? 1 : 0) "`nAktywne=" akt
+FileDelete, kasa_stan.txt
+FileAppend, %s%, kasa_stan.txt
 return
 
-GuiClose:
-ExitApp
+ElementyListy()
+{
+    t := ""
+    for i, v in Karty[Firma]
+        t .= "|Karta " Firma "-" i "  rabat " v
+    return t
+}
+
+OtworzListe:
+Gui, Lista:New, +HwndListaHwnd, Lista kart
+Gui, Lista:Add, ListBox, vLB AltSubmit w300 h120, % SubStr(ElementyListy(), 2)
+GuiControl, Lista:Choose, LB, 1
+Gui, Lista:Show, x150 y150 w320 h140
+GuiControl, Lista:Focus, LB
+return
+
+OtworzKarte:
+GuiControlGet, Sel, Lista:, LB
+Gui, Karta:New, +HwndKartaHwnd, Modyfikacja karty
+Gui, Karta:Add, Edit, w200 ReadOnly, K%Firma%-%Sel%
+Gui, Karta:Add, Edit, w200, Firma %Firma%
+Gui, Karta:Add, Edit, w200, 1000
+Gui, Karta:Add, Edit, w200, ON
+Gui, Karta:Add, Edit, w200, uwagi
+Gui, Karta:Add, Edit, w200 vRabat, % Karty[Firma][Sel]
+Gui, Karta:Add, Edit, w200, T
+Gui, Karta:Show, x200 y200 w220 h260
+return
+
+ZamknijKarte(zapisz)
+{
+    if (zapisz)
+    {
+        GuiControlGet, val, Karta:, Rabat
+        Karty[Firma][Sel] := val
+        Zapisy++
+    }
+    Gui, Karta:Destroy
+    KartaHwnd := 0
+    GuiControl, Lista:, LB, % ElementyListy()
+    GuiControl, Lista:Choose, LB, %Sel%
+    WinActivate, ahk_id %ListaHwnd%
+    GuiControl, Lista:Focus, LB
+}
 
 Klawisz(wParam, lParam, msg, hwnd)
 {
-    static nazwy := {0x0D: "{Enter}", 0x09: "{Tab}", 0x1B: "{Esc}", 0x28: "{Down}", 0x24: "{Home}", 0x23: "{End}", 0x73: "{F4}", 0x79: "{F10}", 0x70: "{F1}"}
-    if nazwy.HasKey(wParam)
-        Log .= nazwy[wParam]
-    if (wParam = 0x79 || wParam = 0x09)
-        return 0
+    top := DllCall("GetAncestor", "ptr", hwnd, "uint", 2, "ptr")
+    if (top = FirmyHwnd)
+    {
+        if (wParam = 0x0D)
+        {
+            GuiControlGet, Firma, Firmy:, Szukaj
+            GuiControl, Firmy:, Szukaj
+            return 0
+        }
+        if (wParam = 0x79)
+        {
+            if Karty.HasKey(Firma)
+                SetTimer, OtworzListe, -400
+            return 0
+        }
+    }
+    else if (top = ListaHwnd && !KartaHwnd)
+    {
+        if (wParam = 0x73)
+        {
+            SetTimer, OtworzKarte, -400
+            return 0
+        }
+        if (wParam = 0x1B)
+        {
+            Gui, Lista:Destroy
+            ListaHwnd := 0
+            WinActivate, ahk_id %FirmyHwnd%
+            return 0
+        }
+        if (wParam = 0x79)
+            return 0
+    }
+    else if (top = KartaHwnd)
+    {
+        if (wParam = 0x79)
+        {
+            ZamknijKarte(true)
+            return 0
+        }
+        if (wParam = 0x1B)
+        {
+            ZamknijKarte(false)
+            return 0
+        }
+    }
 }
 
 SysUp(wParam, lParam, msg, hwnd)
 {
     if (wParam = 0x79)
         return 0
-}
-
-Znak(wParam, lParam, msg, hwnd)
-{
-    if (wParam >= 32)
-        Log .= Chr(wParam)
 }

@@ -6,7 +6,7 @@ SetWorkingDir, %A_ScriptDir%
 
 WczytajUstawienia(A_ScriptDir "\Rabaty.ini")
 
-MsgBox, 64, Program Rabaty - Gotowy, Program czuwa w tle!`n`n1. Otworz program kasowy, okno z lista firm.`n2. Nacisnij [Ctrl + S] i wybierz plik .txt z rabatami.`n`n[ESC] lub [Ctrl + Q] = Natychmiastowe zatrzymanie programu.
+MsgBox, 64, Program Rabaty - Gotowy, Program czuwa w tle!`n`n1. Otworz program kasowy, okno z lista firm.`n2. Nacisnij [Ctrl + S] i wybierz plik .txt z rabatami.`n`n[Ctrl + K] = kalibracja pola rabatu (w oknie modyfikacji karty).`n[ESC] lub [Ctrl + Q] = Natychmiastowe zatrzymanie programu.
 return
 
 ; $ - program nie reaguje na wlasne wysylane klawisze (sam wysyla Esc do kasy)
@@ -21,16 +21,34 @@ return
 GlowneWprowadzanie()
 return
 
+; Kalibracja: otworz okno modyfikacji karty (F4), kliknij w pole rabatu i nacisnij Ctrl+K
+^k::
+Kalibracja()
+return
+
 #Include %A_ScriptDir%\Rabaty_lib.ahk
 
-PytajOKolejnaKarte(curID, Nr)
+Kalibracja()
 {
-    MsgBox, 262147, Firma %curID% - karta %Nr% zapisana, Karta nr %Nr% zapisana.`n`nCzy ta firma ma KOLEJNA karte na liscie?`n`n[Tak] = przejdz nizej i zmien nastepna karte`n[Nie] = koniec kart, wyjdz z listy (Esc)`n[Anuluj] = zatrzymaj caly program
-    IfMsgBox, Yes
-        return "tak"
+    WinGet, h, ID, A
+    WinGetClass, klasa, ahk_id %h%
+    ControlGetFocus, pole, ahk_id %h%
+    opis := OpisOkna(h)
+    FileDelete, %A_ScriptDir%\diagnostyka.txt
+    FileAppend, %opis%, %A_ScriptDir%\diagnostyka.txt
+    if (pole == "")
+    {
+        MsgBox, 48, Kalibracja, Nie udalo sie odczytac aktywnego pola.`nProgram dalej bedzie uzywal Tabow (IloscTab w Rabaty.ini).`n`nOpis okna zapisano w diagnostyka.txt.
+        return
+    }
+    ControlGetText, wart, %pole%, ahk_id %h%
+    MsgBox, 262180, Kalibracja, Okno: ahk_class %klasa%`nPole rabatu: %pole%`nObecna wartosc pola: %wart%`n`nZapisac to jako okno modyfikacji karty i pole rabatu?
     IfMsgBox, No
-        return "nie"
-    return "stop"
+        return
+    Ust.OknoKarty := "ahk_class " klasa
+    Ust.PoleRabatu := pole
+    ZapiszUstawienia(A_ScriptDir "\Rabaty.ini")
+    MsgBox, 64, Kalibracja, Zapisano w Rabaty.ini. Od teraz program sam ustawi kursor w polu rabatu.
 }
 
 GlowneWprowadzanie()
@@ -70,13 +88,13 @@ GlowneWprowadzanie()
 
     SoundBeep, 1000, 150
     Sleep, 300
-    Pytaj := Func("PytajOKolejnaKarte")
+    LiczbaZmienionych := 0
 
     for index, item in FirmList
     {
         curID := item.id
         curRabat := item.rabat
-        MsgBox, 262147, Potwierdzenie zmiany ceny (%index%/%TotalValid%), Firma: %curID%`nRabat (gr): %curRabat%`nCzy chcesz zmienic rabat dla tej firmy?`n`n[Tak] = wprowadz  [Nie] = pomin  [Anuluj] = zakoncz
+        MsgBox, 262147, Potwierdzenie zmiany ceny (%index%/%TotalValid%), Firma: %curID%`nRabat (gr): %curRabat%`nCzy chcesz zmienic rabat na WSZYSTKICH kartach tej firmy?`n`n[Tak] = wprowadz  [Nie] = pomin  [Anuluj] = zakoncz
         IfMsgBox, Cancel
         {
             MsgBox, 48, Przerwano, Zakonczono wprowadzanie na zadanie uzytkownika.
@@ -85,12 +103,15 @@ GlowneWprowadzanie()
         IfMsgBox, No
             continue
 
-        if (WprowadzFirme(KasaHwnd, curID, curRabat, item.karty, Pytaj) == "stop")
+        wynik := WprowadzFirme(KasaHwnd, curID, curRabat)
+        if (wynik < 0)
         {
-            MsgBox, 48, Przerwano, Zatrzymano na firmie %curID%.`nSprawdz w kasie, czy okno listy kart jest zamkniete.
+            SoundBeep, 500, 400
+            MsgBox, 16, Zatrzymano, %OstatniBlad%`n`nProgram zatrzymal sie, zeby nic nie wpisac w zle miejsce. Sprawdz okna w kasie.
             return
         }
+        TrayTip, Rabaty, Firma %curID%: zmieniono kart: %wynik%, 2
     }
     SoundBeep, 1200, 300
-    MsgBox, 64, Sukces, Pomyslnie przetworzono cala liste firm!
+    MsgBox, 64, Sukces, Pomyslnie przetworzono cala liste firm!`nZmienionych kart: %LiczbaZmienionych%
 }

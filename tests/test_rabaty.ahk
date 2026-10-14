@@ -21,44 +21,48 @@ Sprawdz(Firmy[1].id == "1001" && Firmy[1].rabat == "10", "firma 1 = 1001 / 10")
 Sprawdz(Firmy[3].id == "1003" && Firmy[3].rabat == "30", "spacje obciete: 1003 / 30")
 Sprawdz(Firmy[4].id == "A+1#", "ID ze znakami specjalnymi")
 Sprawdz(PoliczDziesiatki(Firmy) == 1, "liczba rabatow 10 gr = 1")
-Sprawdz(Firmy[2].karty == 3 && Firmy[1].karty == 0, "opcjonalna liczba kart (4. pole)")
 
 ; --- Test 2: bledne pliki ---
 Sprawdz(!WczytajRabaty(A_ScriptDir "\nie_ma.txt", c, f, b), "brak pliku -> blad")
 Sprawdz(!WczytajRabaty(A_ScriptDir "\rabaty_pusty.txt", c, f, b), "pusty plik -> blad")
 
-; --- Test 3: wpisywanie do okna (symulacja programu kasowego w osobnym procesie) ---
+; --- Test 3: pelna symulacja kasy (osobny proces) ---
+FileDelete, %A_ScriptDir%\kasa_stan.txt
 Run, "%A_AhkPath%" "%A_ScriptDir%\fake_kasa.ahk"
-WinWait, Kasa TEST,, 10
-Hwnd := WinExist("Kasa TEST")
-Sprawdz(Hwnd, "okno kasy testowej otwarte")
+WinWait, Kasa TEST - Firmy,, 10
+FirmaHwnd := WinExist("Kasa TEST - Firmy")
+Sprawdz(FirmaHwnd, "okno firm otwarte")
+WinActivate, ahk_id %FirmaHwnd%
 Sleep, 500
 InitUst()
-Sprawdz(Ust.IloscTab == 5 && Ust.PoListaKart == 1000, "domyslne ustawienia wczytane")
-for k in Ust
-    if (k != "Tempo" && k != "IloscTab")
-        Ust[k] := 100
-global Odpowiedzi := ["tak", "nie"]
-Pytaj := Func("FakePytaj")
-; firma z 2 kartami (program pyta: tak, nie), firma z 3 kartami podanymi w pliku, ID ze znakami specjalnymi
-WprowadzFirme(Hwnd, Firmy[1].id, Firmy[1].rabat, Firmy[1].karty, Pytaj)
-WprowadzFirme(Hwnd, Firmy[2].id, Firmy[2].rabat, Firmy[2].karty, Pytaj)
-WprowadzFirme(Hwnd, Firmy[4].id, "5", 1, Pytaj)
-Sleep, 1000
-FileRead, Log, %A_ScriptDir%\kasa_log.txt
-WinClose, ahk_id %Hwnd%
-Oczekiwany := "1001{Enter}{F10}{F4}{Tab}{Tab}{Tab}{Tab}{Tab}{End}{Home}10{F10}{Down}{F4}{Tab}{Tab}{Tab}{Tab}{Tab}{End}{Home}10{F10}{Esc}1002{Enter}{F10}{F4}{Tab}{Tab}{Tab}{Tab}{Tab}{End}{Home}20{F10}{Down}{F4}{Tab}{Tab}{Tab}{Tab}{Tab}{End}{Home}20{F10}{Down}{F4}{Tab}{Tab}{Tab}{Tab}{Tab}{End}{Home}20{F10}{Esc}A+1#{Enter}{F10}{F4}{Tab}{Tab}{Tab}{Tab}{Tab}{End}{Home}5{F10}{Esc}"
-Sprawdz(Log == Oczekiwany, "sekwencja: ID, Enter, F10, [F4, 5x Tab, rabat, F10, Down]..., Esc")
-Wynik .= "--- odebrane klawisze ---`n" Log "`n---`n"
+Sprawdz(Ust.IloscTab == 5, "domyslne ustawienia wczytane")
+Ust.PoEnter := 200, Ust.PoOknie := 150, Ust.PoTab := 60, Ust.PoWpisaniu := 100, Ust.PoStrzalce := 200, Ust.PoEsc := 200, Ust.MaxCzekanie := 3000
+
+; firma z 3 kartami (Taby)
+w1 := WprowadzFirme(FirmaHwnd, "1001", "30")
+Sprawdz(w1 == 3, "1001: zmieniono 3 karty (jest: " w1 ") " OstatniBlad)
+; firma, ktorej 1. karta juz ma docelowy rabat (nie moze sie zatrzymac za wczesnie)
+w3 := WprowadzFirme(FirmaHwnd, "1003", "20")
+Sprawdz(w3 == 2, "1003: zmieniono 2 karty (jest: " w3 ") " OstatniBlad)
+; po kalibracji: bezposrednio do pola rabatu
+Ust.PoleRabatu := "Edit6", Ust.OknoKarty := "Modyfikacja karty"
+w2 := WprowadzFirme(FirmaHwnd, "1002", "20")
+Sprawdz(w2 == 1, "1002 (kalibracja): zmieniono 1 karte (jest: " w2 ") " OstatniBlad)
+; nieistniejaca firma - musi sie bezpiecznie zatrzymac
+w4 := WprowadzFirme(FirmaHwnd, "9999", "15")
+Sprawdz(w4 == -1 && InStr(OstatniBlad, "listy kart"), "nieznana firma -> bezpieczne zatrzymanie")
+
+Sleep, 600
+FileRead, Stan, %A_ScriptDir%\kasa_stan.txt
+WinClose, ahk_id %FirmaHwnd%
+Sprawdz(InStr(Stan, "1001=30,30,30|1002=20|1003=20,20"), "rabaty na wszystkich kartach zmienione")
+Sprawdz(InStr(Stan, "Zapisy=6"), "dokladnie 6 zapisow kart (bez zbednych)")
+Sprawdz(InStr(Stan, "Lista=0") && InStr(Stan, "Karta=0"), "wszystkie okna kart zamkniete")
+Wynik .= "--- stan kasy ---`n" Stan "`n---`n"
 
 FileDelete, %A_ScriptDir%\wynik.txt
 FileAppend, %Wynik%, %A_ScriptDir%\wynik.txt
 ExitApp, % (Bledy ? 1 : 0)
-
-FakePytaj(id, nr)
-{
-    return Odpowiedzi.RemoveAt(1)
-}
 
 ; Jesli program zlapalby wlasny Esc, test konczy sie bledem 3
 $Esc::ExitApp, 3
