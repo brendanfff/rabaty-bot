@@ -2,6 +2,15 @@
 global Ust := ""
 global OstatniBlad := ""
 global LiczbaZmienionych := 0
+global LogPlik := ""
+
+Log(t)
+{
+    if (LogPlik == "")
+        return
+    FormatTime, cz,, HH:mm:ss
+    FileAppend, % cz "  " t "`r`n", %LogPlik%
+}
 
 InitUst()
 {
@@ -14,6 +23,7 @@ InitUst()
     Ust.OknoKarty := ""       ; okno modyfikacji karty (z kalibracji), np. ahk_class TFormKarta
     Ust.MaxCzekanie := 5000   ; max czekanie na pojawienie/zamkniecie okna
     Ust.MaxKart := 60         ; bezpiecznik: max kart na firme
+    Ust.MaxOtwarc := 400      ; bezpiecznik: max otwarc okna karty na firme
     Ust.PoEnter := 700
     Ust.PoOknie := 300        ; dodatkowa chwila po pojawieniu sie okna
     Ust.PoTab := 120
@@ -176,7 +186,7 @@ TakiSamRabat(a, b)
 }
 
 ; Ustawia kursor w polu rabatu w oknie karty i zwraca jego obecna wartosc.
-PrzejdzDoPolaRabatu(Dlg)
+PrzejdzDoPolaRabatu(Dlg, ByRef Pole)
 {
     Pole := ""
     if (Ust.PoleRabatu != "")
@@ -202,6 +212,22 @@ PrzejdzDoPolaRabatu(Dlg)
     return Wartosc
 }
 
+; Dane karty (wszystkie pola okna OPROCZ pola rabatu) - rozpoznaje te sama karte.
+IdentyfikatorKarty(Dlg, Pole)
+{
+    WinGet, lista, ControlList, ahk_id %Dlg%
+    id := ""
+    Loop, Parse, lista, `n
+    {
+        if (A_LoopField == Pole)
+            continue
+        ControlGetText, tx, %A_LoopField%, ahk_id %Dlg%
+        if (tx != "")
+            id .= A_LoopField "=" tx "|"
+    }
+    return id
+}
+
 SkopiujZaznaczone()
 {
     Zapas := ClipboardAll
@@ -216,12 +242,14 @@ SkopiujZaznaczone()
 
 ; Wprowadza rabat dla wszystkich kart jednej firmy.
 ; ID, Enter, F10 (lista kart), dla kazdej karty: F4, pole rabatu, rabat, F10 (zapis), strzalka w dol.
-; Koniec listy = po strzalce w dol otwiera sie ta sama karta, ktora ma juz nowy rabat -> Esc, Esc.
+; Karty juz zmienione (rozpoznane po danych karty) sa pomijane - dziala tez, gdy lista po zapisie wraca na gore.
+; Koniec listy = strzalka w dol nie zmienia karty (dwa razy z rzedu ta sama karta).
 ; Zwraca liczbe zmienionych kart albo -1 przy bledzie (opis w OstatniBlad).
 WprowadzFirme(FirmaHwnd, curID, curRabat)
 {
     InitUst()
     OstatniBlad := ""
+    Log("=== Firma " curID ", rabat " curRabat)
     Aktywuj(FirmaHwnd)
     if !FirmaHwnd
         WinGet, FirmaHwnd, ID, A
@@ -236,16 +264,21 @@ WprowadzFirme(FirmaHwnd, curID, curRabat)
     if !ListaHwnd
     {
         OstatniBlad := "Po F10 nie otworzylo sie okno listy kart (firma " curID ").`nSprawdz, czy ID firmy jest poprawne."
+        Log("BLAD: " OstatniBlad)
         return -1
     }
+    WinGetTitle, t, ahk_id %ListaHwnd%
+    Log("Lista kart: " t)
 
     Zmienione := 0
-    PoprzedniTekst := ""
+    Zapisane := {}
+    OstatnioPominieta := ""
     Loop
     {
-        if (A_Index > Ust.MaxKart)
+        if (A_Index > Ust.MaxOtwarc || Zmienione >= Ust.MaxKart)
         {
-            OstatniBlad := "Przekroczono limit " Ust.MaxKart " kart dla firmy " curID "."
+            OstatniBlad := "Przekroczono limit kart dla firmy " curID "."
+            Log("BLAD: " OstatniBlad)
             return -1
         }
         Aktywuj(ListaHwnd)
@@ -253,43 +286,67 @@ WprowadzFirme(FirmaHwnd, curID, curRabat)
         Dlg := CzekajNaNoweOkno(ListaHwnd, Ust.OknoKarty)
         if !Dlg
         {
-            OstatniBlad := "Po F4 nie otworzylo sie okno modyfikacji karty (firma " curID ", karta " A_Index ")."
+            OstatniBlad := "Po F4 nie otworzylo sie okno modyfikacji karty (firma " curID ", zmienione karty: " Zmienione ")."
+            Log("BLAD: " OstatniBlad)
             return -1
         }
 
-        Wartosc := PrzejdzDoPolaRabatu(Dlg)
-        WinGetText, Tekst, ahk_id %Dlg%
+        Wartosc := PrzejdzDoPolaRabatu(Dlg, Pole)
+        Karta := IdentyfikatorKarty(Dlg, Pole)
+        Log("Otwarta karta: [" Karta "] pole " Pole " = " Wartosc)
 
-        ; Ta sama karta co poprzednio (koniec listy) i ma juz nowy rabat -> koniec firmy
-        if (Zmienione > 0 && TakiSamRabat(Wartosc, curRabat) && (Tekst == "" || Tekst == PoprzedniTekst))
+        Juz := false
+        if (Karta != "")
+            Juz := Zapisane.HasKey(Karta)
+        else
+            Juz := (Zmienione > 0 && TakiSamRabat(Wartosc, curRabat))
+
+        if (Juz)
         {
+            ; Ta karta jest juz zrobiona. Jesli to ta sama co przed chwila - strzalka nie przesunela = koniec listy.
+            Koniec := (Karta == "" || Karta == OstatnioPominieta)
             Send, {Esc}
             if !CzekajNaZamkniecie(Dlg)
             {
                 OstatniBlad := "Nie zamknelo sie okno karty po Esc (firma " curID ")."
+                Log("BLAD: " OstatniBlad)
                 return -1
             }
-            break
+            if (Koniec)
+            {
+                Log("Koniec listy kart.")
+                break
+            }
+            Log("Karta juz zmieniona - pomijam i ide nizej.")
+            OstatnioPominieta := Karta
+            Aktywuj(ListaHwnd)
+            Send, {Down}
+            Czekaj("PoStrzalce")
+            continue
         }
+        OstatnioPominieta := ""
 
         if !WinActive("ahk_id " Dlg)
         {
             OstatniBlad := "Okno karty przestalo byc aktywne - przerwano, zeby nie wpisac rabatu w zle miejsce."
+            Log("BLAD: " OstatniBlad)
             return -1
         }
         Send, {End}+{Home}
         Send, {Raw}%curRabat%
         Czekaj("PoWpisaniu")
-        WinGetText, PoprzedniTekst, ahk_id %Dlg%
 
         Send, {F10}                     ; zapis karty
         if !CzekajNaZamkniecie(Dlg)
         {
-            OstatniBlad := "Po F10 (zapis) okno karty sie nie zamknelo (firma " curID ", karta " A_Index ").`nMoze wyskoczylo okienko z bledem lub potwierdzeniem."
+            OstatniBlad := "Po F10 (zapis) okno karty sie nie zamknelo (firma " curID ", karta " Zmienione + 1 ").`nMoze wyskoczylo okienko z bledem lub potwierdzeniem."
+            Log("BLAD: " OstatniBlad)
             return -1
         }
         Zmienione++
         LiczbaZmienionych++
+        Zapisane[Karta] := 1
+        Log("Zapisano karte nr " Zmienione)
 
         Aktywuj(ListaHwnd)
         Send, {Down}                    ; nastepna karta
@@ -301,9 +358,11 @@ WprowadzFirme(FirmaHwnd, curID, curRabat)
     if !CzekajNaZamkniecie(ListaHwnd)
     {
         OstatniBlad := "Nie zamknela sie lista kart po Esc (firma " curID ")."
+        Log("BLAD: " OstatniBlad)
         return -1
     }
     Czekaj("PoEsc")
+    Log("Firma " curID ": zmieniono " Zmienione " kart.")
     return Zmienione
 }
 

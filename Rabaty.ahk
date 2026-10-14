@@ -5,6 +5,7 @@ CoordMode, Mouse, Screen
 SetWorkingDir, %A_ScriptDir%
 
 WczytajUstawienia(A_ScriptDir "\Rabaty.ini")
+LogPlik := A_ScriptDir "\rabaty_log.txt"
 
 MsgBox, 64, Program Rabaty - Gotowy, Program czuwa w tle!`n`n1. Otworz program kasowy, okno z lista firm.`n2. Nacisnij [Ctrl + S] i wybierz plik .txt z rabatami.`n`n[Ctrl + K] = kalibracja pola rabatu (w oknie modyfikacji karty).`n[ESC] lub [Ctrl + Q] = Natychmiastowe zatrzymanie programu.
 return
@@ -89,6 +90,8 @@ GlowneWprowadzanie()
     SoundBeep, 1000, 150
     Sleep, 300
     LiczbaZmienionych := 0
+    FileDelete, %LogPlik%
+    Log("Plik: " Sciezka ", firm: " TotalValid)
 
     for index, item in FirmList
     {
@@ -107,7 +110,7 @@ GlowneWprowadzanie()
         if (wynik < 0)
         {
             SoundBeep, 500, 400
-            MsgBox, 16, Zatrzymano, %OstatniBlad%`n`nProgram zatrzymal sie, zeby nic nie wpisac w zle miejsce. Sprawdz okna w kasie.
+            MsgBox, 16, Zatrzymano, %OstatniBlad%`n`nProgram zatrzymal sie, zeby nic nie wpisac w zle miejsce. Sprawdz okna w kasie.`nSzczegoly: rabaty_log.txt
             return
         }
         TrayTip, Rabaty, Firma %curID%: zmieniono kart: %wynik%, 2

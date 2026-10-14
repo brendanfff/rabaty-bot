@@ -3,7 +3,7 @@
 #SingleInstance Force
 SetWorkingDir, %A_ScriptDir%
 SetBatchLines, -1
-global Karty := {"k1001": [5, 5, 5], "k1002": [7], "k1003": [20, 3]}
+global Karty := {"k1001": [5, 5, 5], "k1002": [7], "k1003": [20, 3], "k1004": [1, 2, 3, 4]}
 global Firma := "", Sel := 1, Zapisy := 0, Zdarzenia := ""
 global FirmyHwnd := 0, ListaHwnd := 0, KartaHwnd := 0
 
@@ -72,7 +72,7 @@ ZamknijKarte(zapisz)
     Gui, Karta:Destroy
     KartaHwnd := 0
     GuiControl, Lista:, LB, % ElementyListy()
-    GuiControl, Lista:Choose, LB, %Sel%
+    GuiControl, Lista:Choose, LB, % (zapisz && Firma = "1004") ? 1 : Sel
     WinActivate, ahk_id %ListaHwnd%
     GuiControl, Lista:Focus, LB
 }
