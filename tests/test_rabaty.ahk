@@ -16,10 +16,11 @@ Sprawdz(warunek, opis)
 ok := WczytajRabaty(A_ScriptDir "\rabaty_test.txt", Cena, Firmy, Blad)
 Sprawdz(ok, "wczytanie pliku testowego")
 Sprawdz(Cena == "6.49", "cena slupa = 6.49 (jest: " Cena ")")
-Sprawdz(Firmy.Length() == 4, "4 firmy (jest: " Firmy.Length() ")")
+Sprawdz(Firmy.Length() == 5, "5 firm (jest: " Firmy.Length() ")")
 Sprawdz(Firmy[1].id == "1001" && Firmy[1].rabat == "10", "firma 1 = 1001 / 10")
 Sprawdz(Firmy[3].id == "1003" && Firmy[3].rabat == "30", "spacje obciete: 1003 / 30")
 Sprawdz(Firmy[4].id == "A+1#", "ID ze znakami specjalnymi")
+Sprawdz(Firmy[5].id == "5880", "ID w cudzyslowie (jak w starym programie)")
 Sprawdz(PoliczDziesiatki(Firmy) == 1, "liczba rabatow 10 gr = 1")
 
 ; --- Test 2: bledne pliki ---
@@ -57,9 +58,9 @@ Sprawdz(w5 == 4, "1004 (lista wraca na gore): zmieniono 4 karty (jest: " w5 ") "
 ; po zapisie kursor ucieka z tabeli (strzalka nie dziala)
 w6 := WprowadzFirme(FirmaHwnd, "1005", "41")
 Sprawdz(w6 == 3, "1005 (kursor ucieka z tabeli): zmieniono 3 karty (jest: " w6 ") " OstatniBlad)
-; lista przestawia sie po zapisie
+; jak w PetrolStationCL: lista wraca na gore po kazdym zamknieciu karty (zapis i Esc), karty 10 i 0 pomijane
 w7 := WprowadzFirme(FirmaHwnd, "1006", "41")
-Sprawdz(w7 == 4, "1006 (lista sie przestawia): zmieniono 4 karty (jest: " w7 ") " OstatniBlad)
+Sprawdz(w7 == 2, "1006 (powrot na gore + pomijanie 10/0): zmieniono 2 karty (jest: " w7 ") " OstatniBlad)
 ; nieistniejaca firma - musi sie bezpiecznie zatrzymac
 w4 := WprowadzFirme(FirmaHwnd, "9999", "15")
 Sprawdz(w4 == -1 && InStr(OstatniBlad, "listy kart"), "nieznana firma -> bezpieczne zatrzymanie")
@@ -67,8 +68,8 @@ Sprawdz(w4 == -1 && InStr(OstatniBlad, "listy kart"), "nieznana firma -> bezpiec
 Sleep, 600
 FileRead, Stan, %A_ScriptDir%\kasa_stan.txt
 WinClose, ahk_id %FirmaHwnd%
-Sprawdz(InStr(Stan, "1001=30,30,30|1002=20|1003=20,20|1004=25,25,25,25|1005=41,41,41|1006=41,41,41,41"), "rabaty na wszystkich kartach zmienione")
-Sprawdz(InStr(Stan, "Zapisy=17"), "dokladnie 17 zapisow kart (bez zbednych)")
+Sprawdz(InStr(Stan, "1001=30,30,30|1002=20|1003=20,20|1004=25,25,25,25|1005=41,41,41|1006=41,10,0,41"), "rabaty na wszystkich kartach zmienione")
+Sprawdz(InStr(Stan, "Zapisy=15"), "dokladnie 15 zapisow kart (bez zbednych)")
 Sprawdz(InStr(Stan, "Lista=0") && InStr(Stan, "Karta=0"), "wszystkie okna kart zamkniete")
 Wynik .= "--- stan kasy ---`n" Stan "`n---`n"
 

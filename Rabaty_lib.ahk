@@ -142,6 +142,8 @@ WczytajRabaty(Sciezka, ByRef CenaSlupa, ByRef FirmList, ByRef Blad)
         if (Fields.Length() < 3)
             continue
         fID := Trim(Fields[1], " `t")
+        if (StrLen(fID) >= 2 && SubStr(fID, 1, 1) == """" && SubStr(fID, 0) == """")
+            fID := SubStr(fID, 2, StrLen(fID) - 2)
         fCena := Trim(Fields[2], " `t")
         fRabat := Trim(Fields[3], " `t")
         if (fID == "" || fRabat == "")
@@ -255,10 +257,11 @@ SkopiujZaznaczone()
     return w
 }
 
-; Wprowadza rabat dla wszystkich kart jednej firmy.
-; ID, Enter, F10 (lista kart), dla kazdej karty: F4, pole rabatu, rabat, F10 (zapis), strzalka w dol.
-; Karty juz zmienione (rozpoznane po danych karty) sa pomijane - dziala tez, gdy lista po zapisie wraca na gore.
-; Koniec listy = strzalka w dol nie zmienia karty (dwa razy z rzedu ta sama karta).
+; Wprowadza rabat dla wszystkich kart jednej firmy (logika jak w starym programie "nowa zmiana cen.exe"):
+; ID, Enter, F10 (lista kart). Dla karty nr k: poczatek listy + k razy strzalka w dol, F4, pole rabatu,
+; rabat, F10 (zapis). Po zamknieciu karty lista w PetrolStationCL wraca na gore - dlatego pozycja liczona od gory.
+; Karty z rabatem 10 lub 0 (benzyna / wylaczone) sa pomijane bez zmian.
+; Koniec listy = otworzyla sie ta sama karta co poprzednio (strzalki nie maja juz gdzie zejsc).
 ; Zwraca liczbe zmienionych kart albo -1 przy bledzie (opis w OstatniBlad).
 WprowadzFirme(FirmaHwnd, curID, curRabat)
 {
@@ -287,41 +290,52 @@ WprowadzFirme(FirmaHwnd, curID, curRabat)
     Log("Lista kart: " t " (tabela: " Siatka ")")
 
     Zmienione := 0
-    Zapisane := {}
-    OstatnioPominieta := ""
-    Skanowanie := false
-    ZmienioneOdSkanu := -1
+    Pominiete := 0
+    Poprzednia := ""
+    k := 0
     Loop
     {
-        if (A_Index > Ust.MaxOtwarc || Zmienione >= Ust.MaxKart)
+        if (k >= Ust.MaxKart)
         {
-            OstatniBlad := "Przekroczono limit kart dla firmy " curID "."
+            OstatniBlad := "Przekroczono limit " Ust.MaxKart " kart dla firmy " curID "."
             Log("BLAD: " OstatniBlad)
             return -1
         }
+        ; ustaw sie na karcie nr k (liczac od gory)
         UstawTabele(ListaHwnd, Siatka)
+        Send, ^{Home}
+        Sleep, 50
+        Loop, %k%
+        {
+            Send, {Down}
+            Sleep, 30
+        }
+        Czekaj("PoStrzalce")
+
         Send, {F4}                      ; modyfikacja karty
         Dlg := CzekajNaNoweOkno(ListaHwnd, Ust.OknoKarty)
         if !Dlg
         {
-            OstatniBlad := "Po F4 nie otworzylo sie okno modyfikacji karty (firma " curID ", zmienione karty: " Zmienione ")."
+            OstatniBlad := "Po F4 nie otworzylo sie okno modyfikacji karty (firma " curID ", karta " k + 1 ")."
             Log("BLAD: " OstatniBlad)
             return -1
         }
 
         Wartosc := PrzejdzDoPolaRabatu(Dlg, Pole)
         Karta := IdentyfikatorKarty(Dlg, Pole)
-        Log("Otwarta karta: [" Karta "] pole " Pole " = " Wartosc)
+        Log("Karta " k + 1 ": [" Karta "] pole " Pole " = " Wartosc)
 
-        Juz := false
-        if (Karta != "")
-            Juz := Zapisane.HasKey(Karta)
-        else
-            Juz := (Zmienione > 0 && TakiSamRabat(Wartosc, curRabat))
-
-        if (Juz)
+        if (Karta == "")
         {
-            StalaKarta := (Karta == "" || Karta == OstatnioPominieta)
+            Send, {Esc}
+            OstatniBlad := "Nie mozna odczytac danych karty (firma " curID ") - nie wiadomo, kiedy koniec listy."
+            Log("BLAD: " OstatniBlad)
+            return -1
+        }
+
+        if (Karta == Poprzednia)
+        {
+            ; ta sama karta co poprzednio = koniec listy
             Send, {Esc}
             if !CzekajNaZamkniecie(Dlg)
             {
@@ -329,60 +343,50 @@ WprowadzFirme(FirmaHwnd, curID, curRabat)
                 Log("BLAD: " OstatniBlad)
                 return -1
             }
-            OstatnioPominieta := Karta
-            UstawTabele(ListaHwnd, Siatka)
-            if (StalaKarta)
+            Log("Koniec listy kart.")
+            break
+        }
+        Poprzednia := Karta
+
+        if (TakiSamRabat(Wartosc, "10") || TakiSamRabat(Wartosc, "0"))
+        {
+            ; karta benzyny (10 gr) albo z rabatem 0 - nie ruszamy (jak w starym programie)
+            Log("Rabat " Wartosc " - karta pominieta bez zmian.")
+            Send, {Esc}
+            if !CzekajNaZamkniecie(Dlg)
             {
-                ; Strzalka nie przesuwa. Zanim uznamy koniec - przegladamy liste od gory
-                ; (lista mogla sie przestawic albo kursor uciec), chyba ze juz przejrzana bez zmian.
-                if (Karta == "" || ZmienioneOdSkanu == Zmienione)
-                {
-                    Log("Koniec listy kart (przejrzana cala).")
-                    break
-                }
-                Log("Strzalka nie przesuwa - sprawdzam cala liste od gory.")
-                ZmienioneOdSkanu := Zmienione
-                OstatnioPominieta := ""
-                Send, ^{Home}
-                Czekaj("PoStrzalce")
-                continue
+                OstatniBlad := "Nie zamknelo sie okno karty po Esc (firma " curID ")."
+                Log("BLAD: " OstatniBlad)
+                return -1
             }
-            Log("Karta juz zmieniona - pomijam i ide nizej.")
-            Send, {Down}
-            Czekaj("PoStrzalce")
-            continue
+            Pominiete++
         }
-        OstatnioPominieta := ""
-
-        if !WinActive("ahk_id " Dlg)
+        else
         {
-            OstatniBlad := "Okno karty przestalo byc aktywne - przerwano, zeby nie wpisac rabatu w zle miejsce."
-            Log("BLAD: " OstatniBlad)
-            return -1
+            if !WinActive("ahk_id " Dlg)
+            {
+                OstatniBlad := "Okno karty przestalo byc aktywne - przerwano, zeby nie wpisac rabatu w zle miejsce."
+                Log("BLAD: " OstatniBlad)
+                return -1
+            }
+            Send, {End}+{Home}
+            Send, {Raw}%curRabat%
+            Czekaj("PoWpisaniu")
+            Send, {F10}                 ; zapis karty
+            if !CzekajNaZamkniecie(Dlg)
+            {
+                OstatniBlad := "Po F10 (zapis) okno karty sie nie zamknelo (firma " curID ", karta " k + 1 ").`nMoze wyskoczylo okienko z bledem lub potwierdzeniem."
+                Log("BLAD: " OstatniBlad)
+                return -1
+            }
+            Zmienione++
+            LiczbaZmienionych++
+            Log("Zapisano karte " k + 1)
         }
-        Send, {End}+{Home}
-        Send, {Raw}%curRabat%
-        Czekaj("PoWpisaniu")
-
-        Send, {F10}                     ; zapis karty
-        if !CzekajNaZamkniecie(Dlg)
-        {
-            OstatniBlad := "Po F10 (zapis) okno karty sie nie zamknelo (firma " curID ", karta " Zmienione + 1 ").`nMoze wyskoczylo okienko z bledem lub potwierdzeniem."
-            Log("BLAD: " OstatniBlad)
-            return -1
-        }
-        Zmienione++
-        LiczbaZmienionych++
-        Zapisane[Karta] := 1
-        ControlGetFocus, f, ahk_id %ListaHwnd%
-        Log("Zapisano karte nr " Zmienione " (kursor w liscie: " f ")")
-
-        UstawTabele(ListaHwnd, Siatka)
-        Send, {Down}                    ; nastepna karta
-        Czekaj("PoStrzalce")
+        k++
     }
 
-    Aktywuj(ListaHwnd)
+    UstawTabele(ListaHwnd, Siatka)
     Send, {Esc}                         ; zamkniecie listy kart
     if !CzekajNaZamkniecie(ListaHwnd)
     {
@@ -391,7 +395,7 @@ WprowadzFirme(FirmaHwnd, curID, curRabat)
         return -1
     }
     Czekaj("PoEsc")
-    Log("Firma " curID ": zmieniono " Zmienione " kart.")
+    Log("Firma " curID ": zmieniono " Zmienione " kart, pominieto (10/0 gr): " Pominiete ".")
     return Zmienione
 }
 

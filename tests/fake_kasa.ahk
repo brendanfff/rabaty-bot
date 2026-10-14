@@ -4,7 +4,7 @@
 SetWorkingDir, %A_ScriptDir%
 SetBatchLines, -1
 global Karty := {}
-for f, r in {"k1001": [5, 5, 5], "k1002": [7], "k1003": [20, 3], "k1004": [1, 2, 3, 4], "k1005": [1, 2, 3], "k1006": [1, 2, 3, 4]}
+for f, r in {"k1001": [5, 5, 5], "k1002": [7], "k1003": [20, 3], "k1004": [1, 2, 3, 4], "k1005": [1, 2, 3], "k1006": [1, 10, 0, 4]}
 {
     Karty[f] := []
     for i, v in r
@@ -75,13 +75,11 @@ ZamknijKarte(zapisz)
         GuiControlGet, val, Karta:, Rabat
         Karty["k" Firma][Sel].r := val
         Zapisy++
-        if (Firma = "1006")   ; lista sortuje sie po zapisie: zapisana karta na koniec
-            Karty["k" Firma].Push(Karty["k" Firma].RemoveAt(Sel))
     }
     Gui, Karta:Destroy
     KartaHwnd := 0
     GuiControl, Lista:, LB, % ElementyListy()
-    GuiControl, Lista:Choose, LB, % (zapisz && Firma = "1004") ? 1 : Sel
+    GuiControl, Lista:Choose, LB, % ((zapisz && Firma = "1004") || Firma = "1006") ? 1 : Sel
     WinActivate, ahk_id %ListaHwnd%
     if (zapisz && Firma = "1005")   ; po zapisie kursor ucieka do pola filtra
         GuiControl, Lista:Focus, Filtr

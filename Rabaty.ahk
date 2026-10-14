@@ -7,12 +7,13 @@ SetWorkingDir, %A_ScriptDir%
 WczytajUstawienia(A_ScriptDir "\Rabaty.ini")
 LogPlik := A_ScriptDir "\rabaty_log.txt"
 
-MsgBox, 64, Program Rabaty - Gotowy, Program czuwa w tle!`n`n1. Otworz program kasowy, okno z lista firm.`n2. Nacisnij [Ctrl + S] i wybierz plik .txt z rabatami.`n`n[Ctrl + K] = kalibracja pola rabatu (w oknie modyfikacji karty).`n[ESC] lub [Ctrl + Q] = Natychmiastowe zatrzymanie programu.
+MsgBox, 64, Program Rabaty - Gotowy, Program czuwa w tle!`n`n1. Otworz program kasowy, okno z lista firm.`n2. Nacisnij [Ctrl + S] i wybierz plik .txt z rabatami.`n`n[Ctrl + K] = kalibracja pola rabatu (w oknie modyfikacji karty).`n[ESC], [Ctrl + Q] lub [Ctrl + P] = Natychmiastowe zatrzymanie programu.`n`nKarty z rabatem 10 gr (benzyna) lub 0 sa pomijane.
 return
 
 ; $ - program nie reaguje na wlasne wysylane klawisze (sam wysyla Esc do kasy)
 $Esc::
 $^q::
+$^p::
 SoundBeep, 750, 300
 MsgBox, 16, AWARYJNE ZATRZYMANIE, Program zostal natychmiast przerwany!
 ExitApp
