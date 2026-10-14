@@ -30,7 +30,9 @@ Sprawdz(!WczytajRabaty(A_ScriptDir "\rabaty_pusty.txt", c, f, b), "pusty plik ->
 Gui, Kasa:New, +AlwaysOnTop, Kasa TEST
 Gui, Kasa:Add, Edit, vPole w400 h300 Multi WantReturn hwndPoleHwnd
 Gui, Kasa:Show, w420 h320
+global Log := ""
 OnMessage(0x100, "KlawiszWcisniety")
+OnMessage(0x102, "ZnakWpisany")
 WinWaitActive, Kasa TEST,, 5
 Hwnd := WinExist("Kasa TEST")
 ControlFocus, Edit1, ahk_id %Hwnd%
@@ -38,10 +40,9 @@ ControlFocus, Edit1, ahk_id %Hwnd%
 WprowadzFirme(Hwnd, Firmy[1].id, Firmy[1].rabat)
 WprowadzFirme(Hwnd, Firmy[4].id, Firmy[4].rabat)
 Sleep, 500
-GuiControlGet, Tekst, Kasa:, Pole
-Oczekiwany := "1001`r`n[F1]10`r`n`r`nA+1#`r`n[F1]5`r`n`r`n"
-Sprawdz(Tekst == Oczekiwany, "sekwencja klawiszy w oknie kasy: ID, Enter, F1, rabat, Enter, Enter")
-Wynik .= "--- zawartosc okna ---`n" Tekst "`n---`n"
+Oczekiwany := "1001{Enter}{F1}10{Enter}{Enter}A+1#{Enter}{F1}5{Enter}{Enter}"
+Sprawdz(Log == Oczekiwany, "sekwencja klawiszy w oknie kasy: ID, Enter, F1, rabat, Enter, Enter")
+Wynik .= "--- odebrane klawisze ---`n" Log "`n---`n"
 
 FileDelete, %A_ScriptDir%\wynik.txt
 FileAppend, %Wynik%, %A_ScriptDir%\wynik.txt
@@ -49,12 +50,16 @@ ExitApp, % (Bledy ? 1 : 0)
 
 KlawiszWcisniety(wParam, lParam, msg, hwnd)
 {
-    global PoleHwnd
-    if (wParam = 0x70 && hwnd = PoleHwnd)  ; F1
-    {
-        Control, EditPaste, [F1],, ahk_id %PoleHwnd%
-        return 0
-    }
+    if (wParam = 0x0D)
+        Log .= "{Enter}"
+    else if (wParam = 0x70)
+        Log .= "{F1}"
+}
+
+ZnakWpisany(wParam, lParam, msg, hwnd)
+{
+    if (wParam >= 32)
+        Log .= Chr(wParam)
 }
 
 #Include %A_ScriptDir%\..\Rabaty_lib.ahk
