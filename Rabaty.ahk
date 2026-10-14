@@ -2,6 +2,10 @@
 #SingleInstance Force
 SetTitleMatchMode, 2
 CoordMode, Mouse, Screen
+SetWorkingDir, %A_ScriptDir%
+
+MsgBox, 64, Program Rabaty - Gotowy, Program czuwa w tle!`n`n1. Otworz program kasowy i ustaw kursor w polu szukania.`n2. Nacisnij [Ctrl + S], aby rozpoczac.`n`n[ESC] lub [Ctrl + Q] = Natychmiastowy ABORT.
+return
 
 Esc::
 ^q::
@@ -14,8 +18,6 @@ return
 GlowneWprowadzanie()
 return
 
-MsgBox, 64, Program Rabaty - Gotowy, Program czuwa w tle!`n`n1. Otworz program kasowy i ustaw kursor w polu szukania.`n2. Nacisnij [Ctrl + S], aby rozpoczac.`n`n[ESC] lub [Ctrl + Q] = Natychmiastowy ABORT.
-return
 
 GlowneWprowadzanie()
 {

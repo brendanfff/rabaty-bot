@@ -15,24 +15,32 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download AutoHotkey Portable & Compiler
-        shell: powershell
+      # Pobieramy z GitHub Releases (autohotkey.com blokuje runnery przez Cloudflare)
+      - name: Download AutoHotkey v1 (with Ahk2Exe compiler)
+        shell: pwsh
         run: |
-          Invoke-WebRequest -Uri "https://www.autohotkey.com/download/1.1/AutoHotkey_1.1.37.02.zip" -OutFile "ahk.zip"
+          $url = "https://github.com/AutoHotkey/AutoHotkey/releases/download/v1.1.37.02/AutoHotkey_1.1.37.02.zip"
+          Invoke-WebRequest -Uri $url -OutFile "ahk.zip"
           Expand-Archive -Path "ahk.zip" -DestinationPath "$env:RUNNER_TEMP\ahk" -Force
-          Write-Host "AutoHotkey downloaded successfully."
+          Get-ChildItem "$env:RUNNER_TEMP\ahk\Compiler" | Format-Table Name, Length
 
       - name: Compile AHK Script to EXE
-        shell: powershell
+        shell: pwsh
         run: |
           $ahk2exe = "$env:RUNNER_TEMP\ahk\Compiler\Ahk2Exe.exe"
-          $bin = "$env:RUNNER_TEMP\ahk\Compiler\Unicode 32-bit.bin"
-          & $ahk2exe /in "Rabaty.ahk" /out "Rabaty.exe" /bin $bin
-          if (Test-Path "Rabaty.exe") {
-              Write-Host "Rabaty.exe compiled successfully! Size: $((Get-Item Rabaty.exe).Length) bytes"
-          } else {
-              throw "Compilation failed!"
-          }
+          $bin     = "$env:RUNNER_TEMP\ahk\Compiler\Unicode 32-bit.bin"
+          $in      = Join-Path $PWD "Rabaty.ahk"
+          $out     = Join-Path $PWD "Rabaty.exe"
+          if (Test-Path $out) { Remove-Item $out -Force }
+
+          # Ahk2Exe to aplikacja GUI - trzeba czekac na jej zakonczenie
+          $p = Start-Process -FilePath $ahk2exe `
+                 -ArgumentList "/in `"$in`" /out `"$out`" /bin `"$bin`" /silent verbose" `
+                 -Wait -PassThru -NoNewWindow
+          Write-Host "Ahk2Exe exit code: $($p.ExitCode)"
+
+          if (-not (Test-Path $out)) { throw "Kompilacja nie powiodla sie - brak Rabaty.exe" }
+          Write-Host "Rabaty.exe OK, rozmiar: $((Get-Item $out).Length) bajtow"
 
       - name: Upload compiled EXE artifact
         uses: actions/upload-artifact@v4
@@ -43,10 +51,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0
-          name: "Rabaty Bot v1.0"
+          tag_name: build-${{ github.run_number }}
+          name: "Rabaty Bot (build ${{ github.run_number }})"
           files: Rabaty.exe
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          make_latest: true
