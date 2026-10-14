@@ -175,6 +175,21 @@ Aktywuj(Hwnd)
     }
 }
 
+; Aktywuje liste kart i ustawia kursor z powrotem w tabeli kart.
+UstawTabele(ListaHwnd, Siatka)
+{
+    Aktywuj(ListaHwnd)
+    if (Siatka != "")
+    {
+        ControlGetFocus, f, ahk_id %ListaHwnd%
+        if (f != Siatka)
+        {
+            ControlFocus, %Siatka%, ahk_id %ListaHwnd%
+            Sleep, 100
+        }
+    }
+}
+
 TakiSamRabat(a, b)
 {
     a := StrReplace(Trim(a), ",", ".")
@@ -268,11 +283,14 @@ WprowadzFirme(FirmaHwnd, curID, curRabat)
         return -1
     }
     WinGetTitle, t, ahk_id %ListaHwnd%
-    Log("Lista kart: " t)
+    ControlGetFocus, Siatka, ahk_id %ListaHwnd%
+    Log("Lista kart: " t " (tabela: " Siatka ")")
 
     Zmienione := 0
     Zapisane := {}
     OstatnioPominieta := ""
+    Skanowanie := false
+    ZmienioneOdSkanu := -1
     Loop
     {
         if (A_Index > Ust.MaxOtwarc || Zmienione >= Ust.MaxKart)
@@ -281,7 +299,7 @@ WprowadzFirme(FirmaHwnd, curID, curRabat)
             Log("BLAD: " OstatniBlad)
             return -1
         }
-        Aktywuj(ListaHwnd)
+        UstawTabele(ListaHwnd, Siatka)
         Send, {F4}                      ; modyfikacja karty
         Dlg := CzekajNaNoweOkno(ListaHwnd, Ust.OknoKarty)
         if !Dlg
@@ -303,8 +321,7 @@ WprowadzFirme(FirmaHwnd, curID, curRabat)
 
         if (Juz)
         {
-            ; Ta karta jest juz zrobiona. Jesli to ta sama co przed chwila - strzalka nie przesunela = koniec listy.
-            Koniec := (Karta == "" || Karta == OstatnioPominieta)
+            StalaKarta := (Karta == "" || Karta == OstatnioPominieta)
             Send, {Esc}
             if !CzekajNaZamkniecie(Dlg)
             {
@@ -312,14 +329,25 @@ WprowadzFirme(FirmaHwnd, curID, curRabat)
                 Log("BLAD: " OstatniBlad)
                 return -1
             }
-            if (Koniec)
+            OstatnioPominieta := Karta
+            UstawTabele(ListaHwnd, Siatka)
+            if (StalaKarta)
             {
-                Log("Koniec listy kart.")
-                break
+                ; Strzalka nie przesuwa. Zanim uznamy koniec - przegladamy liste od gory
+                ; (lista mogla sie przestawic albo kursor uciec), chyba ze juz przejrzana bez zmian.
+                if (Karta == "" || ZmienioneOdSkanu == Zmienione)
+                {
+                    Log("Koniec listy kart (przejrzana cala).")
+                    break
+                }
+                Log("Strzalka nie przesuwa - sprawdzam cala liste od gory.")
+                ZmienioneOdSkanu := Zmienione
+                OstatnioPominieta := ""
+                Send, ^{Home}
+                Czekaj("PoStrzalce")
+                continue
             }
             Log("Karta juz zmieniona - pomijam i ide nizej.")
-            OstatnioPominieta := Karta
-            Aktywuj(ListaHwnd)
             Send, {Down}
             Czekaj("PoStrzalce")
             continue
@@ -346,9 +374,10 @@ WprowadzFirme(FirmaHwnd, curID, curRabat)
         Zmienione++
         LiczbaZmienionych++
         Zapisane[Karta] := 1
-        Log("Zapisano karte nr " Zmienione)
+        ControlGetFocus, f, ahk_id %ListaHwnd%
+        Log("Zapisano karte nr " Zmienione " (kursor w liscie: " f ")")
 
-        Aktywuj(ListaHwnd)
+        UstawTabele(ListaHwnd, Siatka)
         Send, {Down}                    ; nastepna karta
         Czekaj("PoStrzalce")
     }

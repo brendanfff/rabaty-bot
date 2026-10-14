@@ -54,6 +54,12 @@ Sprawdz(w2 == 1, "1002 (kalibracja): zmieniono 1 karte (jest: " w2 ") " OstatniB
 Ust.PoleRabatu := "", Ust.OknoKarty := ""
 w5 := WprowadzFirme(FirmaHwnd, "1004", "25")
 Sprawdz(w5 == 4, "1004 (lista wraca na gore): zmieniono 4 karty (jest: " w5 ") " OstatniBlad)
+; po zapisie kursor ucieka z tabeli (strzalka nie dziala)
+w6 := WprowadzFirme(FirmaHwnd, "1005", "41")
+Sprawdz(w6 == 3, "1005 (kursor ucieka z tabeli): zmieniono 3 karty (jest: " w6 ") " OstatniBlad)
+; lista przestawia sie po zapisie
+w7 := WprowadzFirme(FirmaHwnd, "1006", "41")
+Sprawdz(w7 == 4, "1006 (lista sie przestawia): zmieniono 4 karty (jest: " w7 ") " OstatniBlad)
 ; nieistniejaca firma - musi sie bezpiecznie zatrzymac
 w4 := WprowadzFirme(FirmaHwnd, "9999", "15")
 Sprawdz(w4 == -1 && InStr(OstatniBlad, "listy kart"), "nieznana firma -> bezpieczne zatrzymanie")
@@ -61,8 +67,8 @@ Sprawdz(w4 == -1 && InStr(OstatniBlad, "listy kart"), "nieznana firma -> bezpiec
 Sleep, 600
 FileRead, Stan, %A_ScriptDir%\kasa_stan.txt
 WinClose, ahk_id %FirmaHwnd%
-Sprawdz(InStr(Stan, "1001=30,30,30|1002=20|1003=20,20|1004=25,25,25,25"), "rabaty na wszystkich kartach zmienione")
-Sprawdz(InStr(Stan, "Zapisy=10"), "dokladnie 10 zapisow kart (bez zbednych)")
+Sprawdz(InStr(Stan, "1001=30,30,30|1002=20|1003=20,20|1004=25,25,25,25|1005=41,41,41|1006=41,41,41,41"), "rabaty na wszystkich kartach zmienione")
+Sprawdz(InStr(Stan, "Zapisy=17"), "dokladnie 17 zapisow kart (bez zbednych)")
 Sprawdz(InStr(Stan, "Lista=0") && InStr(Stan, "Karta=0"), "wszystkie okna kart zamkniete")
 Wynik .= "--- stan kasy ---`n" Stan "`n---`n"
 

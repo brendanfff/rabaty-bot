@@ -3,7 +3,13 @@
 #SingleInstance Force
 SetWorkingDir, %A_ScriptDir%
 SetBatchLines, -1
-global Karty := {"k1001": [5, 5, 5], "k1002": [7], "k1003": [20, 3], "k1004": [1, 2, 3, 4]}
+global Karty := {}
+for f, r in {"k1001": [5, 5, 5], "k1002": [7], "k1003": [20, 3], "k1004": [1, 2, 3, 4], "k1005": [1, 2, 3], "k1006": [1, 2, 3, 4]}
+{
+    Karty[f] := []
+    for i, v in r
+        Karty[f].Push({"n": "K" SubStr(f, 2) "-" i, "r": v})
+}
 global Firma := "", Sel := 1, Zapisy := 0, Zdarzenia := ""
 global FirmyHwnd := 0, ListaHwnd := 0, KartaHwnd := 0
 
@@ -22,7 +28,7 @@ for id, k in Karty
 {
     r := ""
     for i, v in k
-        r .= (i > 1 ? "," : "") v
+        r .= (i > 1 ? "," : "") v.r
     s .= (s == "" ? "" : "|") SubStr(id, 2) "=" r
 }
 WinGetTitle, akt, A
@@ -35,7 +41,7 @@ ElementyListy()
 {
     t := ""
     for i, v in Karty["k" Firma]
-        t .= "|Karta " Firma "-" i "  rabat " v
+        t .= "|" v.n "  rabat " v.r
     return t
 }
 
@@ -44,19 +50,20 @@ Zdarzenia .= "[lista " Firma "] "
 Gui, Lista:New, +HwndListaHwnd, Lista kart
 Gui, Lista:Add, ListBox, vLB AltSubmit w300 h120, % SubStr(ElementyListy(), 2)
 GuiControl, Lista:Choose, LB, 1
-Gui, Lista:Show, x150 y150 w320 h140
+Gui, Lista:Add, Edit, vFiltr w300
+Gui, Lista:Show, x150 y150 w320 h170
 GuiControl, Lista:Focus, LB
 return
 
 OtworzKarte:
 GuiControlGet, Sel, Lista:, LB
 Gui, Karta:New, +HwndKartaHwnd, Modyfikacja karty
-Gui, Karta:Add, Edit, w200 ReadOnly, K%Firma%-%Sel%
+Gui, Karta:Add, Edit, w200 ReadOnly, % Karty["k" Firma][Sel].n
 Gui, Karta:Add, Edit, w200, Firma %Firma%
 Gui, Karta:Add, Edit, w200, 1000
 Gui, Karta:Add, Edit, w200, ON
 Gui, Karta:Add, Edit, w200, uwagi
-Gui, Karta:Add, Edit, w200 vRabat, % Karty["k" Firma][Sel]
+Gui, Karta:Add, Edit, w200 vRabat, % Karty["k" Firma][Sel].r
 Gui, Karta:Add, Edit, w200, T
 Gui, Karta:Show, x200 y200 w220 h260
 return
@@ -66,15 +73,20 @@ ZamknijKarte(zapisz)
     if (zapisz)
     {
         GuiControlGet, val, Karta:, Rabat
-        Karty["k" Firma][Sel] := val
+        Karty["k" Firma][Sel].r := val
         Zapisy++
+        if (Firma = "1006")   ; lista sortuje sie po zapisie: zapisana karta na koniec
+            Karty["k" Firma].Push(Karty["k" Firma].RemoveAt(Sel))
     }
     Gui, Karta:Destroy
     KartaHwnd := 0
     GuiControl, Lista:, LB, % ElementyListy()
     GuiControl, Lista:Choose, LB, % (zapisz && Firma = "1004") ? 1 : Sel
     WinActivate, ahk_id %ListaHwnd%
-    GuiControl, Lista:Focus, LB
+    if (zapisz && Firma = "1005")   ; po zapisie kursor ucieka do pola filtra
+        GuiControl, Lista:Focus, Filtr
+    else
+        GuiControl, Lista:Focus, LB
 }
 
 Klawisz(wParam, lParam, msg, hwnd)
