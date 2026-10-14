@@ -18,21 +18,66 @@ jobs:
       - name: Download AutoHotkey Portable & Compiler
         shell: powershell
         run: |
-          Invoke-WebRequest -Uri "https://www.autohotkey.com/download/1.1/AutoHotkey_1.1.37.02.zip" -OutFile "ahk.zip"
-          Expand-Archive -Path "ahk.zip" -DestinationPath "$env:RUNNER_TEMP\ahk" -Force
-          Write-Host "AutoHotkey downloaded successfully."
+          $zip = "$env:RUNNER_TEMP\AutoHotkey_1.1.37.02.zip"
+          $destination = "$env:RUNNER_TEMP\ahk"
+          $downloadUrl = "https://github.com/AutoHotkey/AutoHotkey/releases/download/v1.1.37.02/AutoHotkey_1.1.37.02.zip"
+
+          Invoke-WebRequest -Uri $downloadUrl -OutFile $zip
+          Expand-Archive -Path $zip -DestinationPath $destination -Force
+
+          $ahk2exe = Join-Path $destination "Compiler\Ahk2Exe.exe"
+          $bin = Join-Path $destination "Compiler\Unicode 32-bit.bin"
+
+          if (-not (Test-Path $ahk2exe)) {
+              throw "Ahk2Exe.exe was not found after extracting AutoHotkey."
+          }
+
+          if (-not (Test-Path $bin)) {
+              throw "Unicode 32-bit.bin was not found after extracting AutoHotkey."
+          }
+
+          Write-Host "AutoHotkey compiler downloaded successfully."
+
+      - name: Validate input script exists
+        shell: powershell
+        run: |
+          if (-not (Test-Path "Rabaty.ahk")) {
+              throw "Source file Rabaty.ahk was not found."
+          }
+
+          if ((Get-Item "Rabaty.ahk").Length -eq 0) {
+              throw "Source file Rabaty.ahk is empty."
+          }
 
       - name: Compile AHK Script to EXE
         shell: powershell
         run: |
           $ahk2exe = "$env:RUNNER_TEMP\ahk\Compiler\Ahk2Exe.exe"
           $bin = "$env:RUNNER_TEMP\ahk\Compiler\Unicode 32-bit.bin"
-          & $ahk2exe /in "Rabaty.ahk" /out "Rabaty.exe" /bin $bin
+
           if (Test-Path "Rabaty.exe") {
-              Write-Host "Rabaty.exe compiled successfully! Size: $((Get-Item Rabaty.exe).Length) bytes"
-          } else {
-              throw "Compilation failed!"
+              Remove-Item "Rabaty.exe" -Force
           }
+
+          & $ahk2exe /in "Rabaty.ahk" /out "Rabaty.exe" /bin $bin
+
+          if ($LASTEXITCODE -ne 0) {
+              throw "Ahk2Exe failed with exit code $LASTEXITCODE."
+          }
+
+          if (-not (Test-Path "Rabaty.exe")) {
+              throw "Compilation failed: Rabaty.exe was not created."
+          }
+
+          Write-Host "Rabaty.exe compiled successfully! Size: $((Get-Item Rabaty.exe).Length) bytes"
+
+      - name: Set release metadata
+        id: release_meta
+        shell: powershell
+        run: |
+          $tag = "v1.0-build-${{ github.run_number }}"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "tag_name=$tag"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "release_name=Rabaty Bot $tag"
 
       - name: Upload compiled EXE artifact
         uses: actions/upload-artifact@v4
@@ -43,9 +88,11 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0
-          name: "Rabaty Bot v1.0"
+          tag_name: ${{ steps.release_meta.outputs.tag_name }}
+          name: ${{ steps.release_meta.outputs.release_name }}
           files: Rabaty.exe
+          target_commitish: ${{ github.sha }}
+          generate_release_notes: true
           draft: false
           prerelease: false
         env:
