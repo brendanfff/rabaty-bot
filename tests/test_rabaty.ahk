@@ -60,10 +60,13 @@ w6 := WprowadzFirme(FirmaHwnd, "1005", "41")
 Sprawdz(w6 == 3, "1005 (kursor ucieka z tabeli): zmieniono 3 karty (jest: " w6 ") " OstatniBlad)
 ; jak w PetrolStationCL: lista wraca na gore po kazdym zamknieciu karty (zapis i Esc), karty 10 i 0 pomijane
 w7 := WprowadzFirme(FirmaHwnd, "1006", "41")
-Sprawdz(w7 == 2, "1006 (powrot na gore + pomijanie 10/0): zmieniono 2 karty (jest: " w7 ") " OstatniBlad)
+Sprawdz(w7 == 2 && OstPominiete10 == 1 && OstPominiete0 == 1, "1006 (powrot na gore + pomijanie 10/0): zmieniono 2 karty (jest: " w7 ") " OstatniBlad)
 ; nieistniejaca firma - musi sie bezpiecznie zatrzymac
 w4 := WprowadzFirme(FirmaHwnd, "9999", "15")
-Sprawdz(w4 == -1 && InStr(OstatniBlad, "listy kart"), "nieznana firma -> bezpieczne zatrzymanie")
+Sprawdz(w4 == -2 && InStr(OstatniBlad, "listy kart"), "nieznana firma -> wykryta (do pominiecia)")
+; tryb probny: nic nie zapisuje
+w8 := WprowadzFirme(FirmaHwnd, "1006", "55", true)
+Sprawdz(w8 == 2 && OstPominiete10 == 1 && OstPominiete0 == 1, "tryb probny: zmienilby 2, pominal 10 i 0 (jest: " w8 ")")
 
 Sleep, 600
 FileRead, Stan, %A_ScriptDir%\kasa_stan.txt

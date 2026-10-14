@@ -3,6 +3,7 @@ global Ust := ""
 global OstatniBlad := ""
 global LiczbaZmienionych := 0
 global LogPlik := ""
+global OstPominiete10 := 0, OstPominiete0 := 0, ListaKlasa := ""
 
 Log(t)
 {
@@ -263,11 +264,12 @@ SkopiujZaznaczone()
 ; Karty z rabatem 10 lub 0 (benzyna / wylaczone) sa pomijane bez zmian.
 ; Koniec listy = otworzyla sie ta sama karta co poprzednio (strzalki nie maja juz gdzie zejsc).
 ; Zwraca liczbe zmienionych kart albo -1 przy bledzie (opis w OstatniBlad).
-WprowadzFirme(FirmaHwnd, curID, curRabat)
+WprowadzFirme(FirmaHwnd, curID, curRabat, Probny := false)
 {
     InitUst()
     OstatniBlad := ""
-    Log("=== Firma " curID ", rabat " curRabat)
+    OstPominiete10 := 0, OstPominiete0 := 0
+    Log("=== Firma " curID ", rabat " curRabat (Probny ? " (TRYB PROBNY - bez zapisu)" : ""))
     Aktywuj(FirmaHwnd)
     if !FirmaHwnd
         WinGet, FirmaHwnd, ID, A
@@ -283,8 +285,16 @@ WprowadzFirme(FirmaHwnd, curID, curRabat)
     {
         OstatniBlad := "Po F10 nie otworzylo sie okno listy kart (firma " curID ").`nSprawdz, czy ID firmy jest poprawne."
         Log("BLAD: " OstatniBlad)
+        return -2
+    }
+    WinGetClass, kl, ahk_id %ListaHwnd%
+    if (ListaKlasa != "" && kl != ListaKlasa)
+    {
+        OstatniBlad := "Po F10 otworzylo sie inne okno niz lista kart (firma " curID ").`nMoze kasa pokazala komunikat, np. ze nie ma takiej firmy."
+        Log("BLAD: " OstatniBlad " (klasa " kl ")")
         return -1
     }
+    ListaKlasa := kl
     WinGetTitle, t, ahk_id %ListaHwnd%
     ControlGetFocus, Siatka, ahk_id %ListaHwnd%
     Log("Lista kart: " t " (tabela: " Siatka ")")
@@ -352,6 +362,10 @@ WprowadzFirme(FirmaHwnd, curID, curRabat)
         {
             ; karta benzyny (10 gr) albo z rabatem 0 - nie ruszamy (jak w starym programie)
             Log("Rabat " Wartosc " - karta pominieta bez zmian.")
+            if TakiSamRabat(Wartosc, "10")
+                OstPominiete10++
+            else
+                OstPominiete0++
             Send, {Esc}
             if !CzekajNaZamkniecie(Dlg)
             {
@@ -360,6 +374,18 @@ WprowadzFirme(FirmaHwnd, curID, curRabat)
                 return -1
             }
             Pominiete++
+        }
+        else if (Probny)
+        {
+            Log("TRYB PROBNY: zmienilbym rabat " Wartosc " -> " curRabat " (zamykam bez zapisu).")
+            Send, {Esc}
+            if !CzekajNaZamkniecie(Dlg)
+            {
+                OstatniBlad := "Nie zamknelo sie okno karty po Esc (firma " curID ")."
+                Log("BLAD: " OstatniBlad)
+                return -1
+            }
+            Zmienione++
         }
         else
         {
