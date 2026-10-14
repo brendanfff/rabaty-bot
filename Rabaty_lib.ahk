@@ -1,10 +1,17 @@
 ; ===== Logika programu Rabaty (wspolna dla programu i testow) =====
 
 ; Ustawienia (czasy w ms). Mozna je zmienic w pliku Rabaty.ini obok programu.
-global Ust := {"Tempo": 1.0, "IloscTab": 5, "PoEnter": 700, "PoListaKart": 1000, "PoF4": 1000, "PoTab": 150, "PoWpisaniu": 300, "PoZapisie": 1000, "PoStrzalce": 400, "PoEsc": 800}
+global Ust := ""
+
+InitUst()
+{
+    if !IsObject(Ust)
+        Ust := {"Tempo": 1.0, "IloscTab": 5, "PoEnter": 700, "PoListaKart": 1000, "PoF4": 1000, "PoTab": 150, "PoWpisaniu": 300, "PoZapisie": 1000, "PoStrzalce": 400, "PoEsc": 800}
+}
 
 WczytajUstawienia(Plik)
 {
+    InitUst()
     if !FileExist(Plik)
     {
         t := "; Ustawienia programu Rabaty. Czasy w milisekundach (1000 = 1 sekunda).`r`n"
@@ -26,6 +33,7 @@ WczytajUstawienia(Plik)
 
 Czekaj(Klucz)
 {
+    InitUst()
     Sleep, % Round(Ust[Klucz] * Ust.Tempo)
 }
 
@@ -107,6 +115,7 @@ Aktywuj(Hwnd)
 ; Zwraca: "ok" albo "stop".
 WprowadzFirme(Hwnd, curID, curRabat, LiczbaKart, PytajFn)
 {
+    InitUst()
     Aktywuj(Hwnd)
     Send, {Raw}%curID%
     Czekaj("PoWpisaniu")

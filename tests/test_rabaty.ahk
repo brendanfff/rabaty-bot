@@ -33,6 +33,8 @@ WinWait, Kasa TEST,, 10
 Hwnd := WinExist("Kasa TEST")
 Sprawdz(Hwnd, "okno kasy testowej otwarte")
 Sleep, 500
+InitUst()
+Sprawdz(Ust.IloscTab == 5 && Ust.PoListaKart == 1000, "domyslne ustawienia wczytane")
 for k in Ust
     if (k != "Tempo" && k != "IloscTab")
         Ust[k] := 100
