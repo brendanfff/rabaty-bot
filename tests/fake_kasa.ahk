@@ -4,7 +4,7 @@
 SetWorkingDir, %A_ScriptDir%
 SetBatchLines, -1
 global Karty := {"1001": [5, 5, 5], "1002": [7], "1003": [20, 3]}
-global Firma := "", Sel := 1, Zapisy := 0
+global Firma := "", Sel := 1, Zapisy := 0, Zdarzenia := ""
 global FirmyHwnd := 0, ListaHwnd := 0, KartaHwnd := 0
 
 Gui, Firmy:New, +HwndFirmyHwnd, Kasa TEST - Firmy
@@ -26,7 +26,7 @@ for id, k in Karty
     s .= (s == "" ? "" : "|") id "=" r
 }
 WinGetTitle, akt, A
-s .= "`nZapisy=" Zapisy "`nLista=" (ListaHwnd ? 1 : 0) "`nKarta=" (KartaHwnd ? 1 : 0) "`nAktywne=" akt
+s .= "`nZapisy=" Zapisy "`nLista=" (ListaHwnd ? 1 : 0) "`nKarta=" (KartaHwnd ? 1 : 0) "`nAktywne=" akt "`nZdarzenia=" Zdarzenia
 FileDelete, kasa_stan.txt
 FileAppend, %s%, kasa_stan.txt
 return
@@ -40,6 +40,7 @@ ElementyListy()
 }
 
 OtworzListe:
+Zdarzenia .= "[lista " Firma "] "
 Gui, Lista:New, +HwndListaHwnd, Lista kart
 Gui, Lista:Add, ListBox, vLB AltSubmit w300 h120, % SubStr(ElementyListy(), 2)
 GuiControl, Lista:Choose, LB, 1
@@ -79,12 +80,15 @@ ZamknijKarte(zapisz)
 Klawisz(wParam, lParam, msg, hwnd)
 {
     top := DllCall("GetAncestor", "ptr", hwnd, "uint", 2, "ptr")
+    if (wParam != 0x10)
+        Zdarzenia .= Format("{:X}", wParam) (top = FirmyHwnd ? "F" : top = ListaHwnd ? "L" : top = KartaHwnd ? "K" : "?") " "
     if (top = FirmyHwnd)
     {
         if (wParam = 0x0D)
         {
             GuiControlGet, Firma, Firmy:, Szukaj
             GuiControl, Firmy:, Szukaj
+            Zdarzenia .= "[firma=" Firma "] "
             return 0
         }
         if (wParam = 0x79)
