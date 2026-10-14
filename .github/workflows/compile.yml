@@ -24,6 +24,24 @@ jobs:
           Expand-Archive -Path "ahk.zip" -DestinationPath "$env:RUNNER_TEMP\ahk" -Force
           Get-ChildItem "$env:RUNNER_TEMP\ahk\Compiler" | Format-Table Name, Length
 
+      - name: Syntax check and tests
+        shell: pwsh
+        run: |
+          $ahk = "$env:RUNNER_TEMP\ahk\AutoHotkeyU32.exe"
+
+          # 1) Sprawdzenie skladni calego programu (bez uruchamiania)
+          $p = Start-Process -FilePath $ahk -ArgumentList "/ErrorStdOut /iLib `"$env:RUNNER_TEMP\lib.ahk`" `"$PWD\Rabaty.ahk`"" `
+                 -Wait -PassThru -NoNewWindow -RedirectStandardError "$env:RUNNER_TEMP\syntax.txt"
+          Get-Content "$env:RUNNER_TEMP\syntax.txt" -ErrorAction SilentlyContinue
+          if ($p.ExitCode -ne 0) { throw "Blad skladni w Rabaty.ahk (kod $($p.ExitCode))" }
+          Write-Host "Skladnia OK"
+
+          # 2) Testy logiki i wpisywania klawiszy
+          $t = Start-Process -FilePath $ahk -ArgumentList "/ErrorStdOut `"$PWD\tests\test_rabaty.ahk`"" -PassThru -NoNewWindow
+          if (-not $t.WaitForExit(90000)) { $t.Kill(); throw "Testy przekroczyly czas" }
+          Get-Content "tests\wynik.txt" -ErrorAction SilentlyContinue
+          if ($t.ExitCode -ne 0) { throw "Testy nie przeszly (kod $($t.ExitCode))" }
+
       - name: Compile AHK Script to EXE
         shell: pwsh
         run: |

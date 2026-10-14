@@ -4,7 +4,7 @@ SetTitleMatchMode, 2
 CoordMode, Mouse, Screen
 SetWorkingDir, %A_ScriptDir%
 
-MsgBox, 64, Program Rabaty - Gotowy, Program czuwa w tle!`n`n1. Otworz program kasowy i ustaw kursor w polu szukania.`n2. Nacisnij [Ctrl + S], aby rozpoczac.`n`n[ESC] lub [Ctrl + Q] = Natychmiastowy ABORT.
+MsgBox, 64, Program Rabaty - Gotowy, Program czuwa w tle!`n`n1. Otworz program kasowy i ustaw kursor w polu szukania.`n2. Nacisnij [Ctrl + S] i wybierz plik .txt z rabatami.`n`n[ESC] lub [Ctrl + Q] = Natychmiastowe zatrzymanie programu.
 return
 
 Esc::
@@ -18,58 +18,39 @@ return
 GlowneWprowadzanie()
 return
 
+#Include %A_ScriptDir%\Rabaty_lib.ahk
 
 GlowneWprowadzanie()
 {
-    IfNotExist, rabaty.txt
+    static OstatniFolder := ""
+
+    ; Zapamietaj okno programu kasowego (to, ktore bylo aktywne przy Ctrl+S)
+    WinGet, KasaHwnd, ID, A
+
+    if (OstatniFolder == "")
+        OstatniFolder := A_ScriptDir
+
+    ; Okno wyboru pliku z rabatami
+    FileSelectFile, Sciezka, 3, %OstatniFolder%, Wybierz plik z rabatami (.txt), Pliki tekstowe (*.txt)
+    if (ErrorLevel || Sciezka == "")
     {
-        MsgBox, 16, Blad, Nie znaleziono pliku rabaty.txt w folderze programu!
+        TrayTip, Rabaty, Nie wybrano pliku - anulowano., 3
+        return
+    }
+    SplitPath, Sciezka, NazwaPliku, OstatniFolder
+
+    if !WczytajRabaty(Sciezka, CenaSlupa, FirmList, Blad)
+    {
+        MsgBox, 16, Blad, %Blad%
         return
     }
 
-    FileRead, FileContent, rabaty.txt
-    Lines := StrSplit(FileContent, "`n", "`r")
+    TotalValid := FirmList.Length()
+    CountTens := PoliczDziesiatki(FirmList)
 
-    if (Lines.Length() < 2)
-    {
-        MsgBox, 16, Blad, Plik rabaty.txt jest pusty lub niepoprawny!
+    MsgBox, 262180, Wczytano plik, Plik: %NazwaPliku%`nCena na slupie: %CenaSlupa%`nLiczba firm: %TotalValid%`n`nRozpoczac wprowadzanie?
+    IfMsgBox, No
         return
-    }
-
-    CenaSlupa := Trim(Lines[1])
-    FirmList := []
-    TotalValid := 0
-    CountTens := 0
-
-    Loop, % Lines.Length()
-    {
-        if (A_Index == 1)
-            continue
-
-        CurrentLine := Trim(Lines[A_Index])
-        if (CurrentLine == "")
-            continue
-
-        Fields := StrSplit(CurrentLine, ";")
-        if (Fields.Length() < 3)
-            continue
-
-        TotalValid++
-        fID := Trim(Fields[1])
-        fCena := Trim(Fields[2])
-        fRabat := Trim(Fields[3])
-
-        if (fRabat = "10")
-            CountTens++
-
-        FirmList.Push({"id": fID, "cena": fCena, "rabat": fRabat})
-    }
-
-    if (TotalValid == 0)
-    {
-        MsgBox, 16, Blad, Brak poprawnych wierszy z firmami!
-        return
-    }
 
     Ratio := (CountTens / TotalValid) * 100
     if (CountTens > 0 && Ratio >= 70)
@@ -87,32 +68,16 @@ GlowneWprowadzanie()
         curID := item.id
         curRabat := item.rabat
 
-        MsgBox, 262147, Potwierdzenie zmiany ceny, Firma: %curID%`nCena na zmianie: %curRabat%`nCzy chcesz zmienic cene dla tej firmy?
-        
+        MsgBox, 262147, Potwierdzenie zmiany ceny (%index%/%TotalValid%), Firma: %curID%`nCena na zmianie: %curRabat%`nCzy chcesz zmienic cene dla tej firmy?`n`n[Tak] = wprowadz  [Nie] = pomin  [Anuluj] = zakoncz
         IfMsgBox, Cancel
         {
             MsgBox, 48, Przerwano, Zakonczono wprowadzanie na zadanie uzytkownika.
             return
         }
         IfMsgBox, No
-        {
             continue
-        }
 
-        Send, %curID%
-        Sleep, 200
-        Send, {Enter}
-        Sleep, 400
-
-        Send, {F1}
-        Sleep, 300
-
-        Send, %curRabat%
-        Sleep, 200
-        Send, {Enter}
-        Sleep, 300
-        Send, {Enter}
-        Sleep, 400
+        WprowadzFirme(KasaHwnd, curID, curRabat)
     }
 
     SoundBeep, 1200, 300
