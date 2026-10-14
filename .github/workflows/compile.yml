@@ -1,9 +1,12 @@
-name: Compile AHK to EXE
+name: Compile AHK to EXE and Release
 
 on:
   push:
     branches: [ "main" ]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -26,7 +29,7 @@ jobs:
           $bin = "$env:RUNNER_TEMP\ahk\Compiler\Unicode 32-bit.bin"
           & $ahk2exe /in "Rabaty.ahk" /out "Rabaty.exe" /bin $bin
           if (Test-Path "Rabaty.exe") {
-              Write-Host "Rabaty.exe compiled successfully!"
+              Write-Host "Rabaty.exe compiled successfully! Size: $((Get-Item Rabaty.exe).Length) bytes"
           } else {
               throw "Compilation failed!"
           }
@@ -36,3 +39,14 @@ jobs:
         with:
           name: Rabaty-EXE
           path: Rabaty.exe
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0
+          name: "Rabaty Bot v1.0"
+          files: Rabaty.exe
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
