@@ -3,7 +3,7 @@
 #SingleInstance Force
 SetWorkingDir, %A_ScriptDir%
 SetBatchLines, -1
-global Karty := {"1001": [5, 5, 5], "1002": [7], "1003": [20, 3]}
+global Karty := {"k1001": [5, 5, 5], "k1002": [7], "k1003": [20, 3]}
 global Firma := "", Sel := 1, Zapisy := 0, Zdarzenia := ""
 global FirmyHwnd := 0, ListaHwnd := 0, KartaHwnd := 0
 
@@ -23,7 +23,7 @@ for id, k in Karty
     r := ""
     for i, v in k
         r .= (i > 1 ? "," : "") v
-    s .= (s == "" ? "" : "|") id "=" r
+    s .= (s == "" ? "" : "|") SubStr(id, 2) "=" r
 }
 WinGetTitle, akt, A
 s .= "`nZapisy=" Zapisy "`nLista=" (ListaHwnd ? 1 : 0) "`nKarta=" (KartaHwnd ? 1 : 0) "`nAktywne=" akt "`nZdarzenia=" Zdarzenia
@@ -34,7 +34,7 @@ return
 ElementyListy()
 {
     t := ""
-    for i, v in Karty[Firma]
+    for i, v in Karty["k" Firma]
         t .= "|Karta " Firma "-" i "  rabat " v
     return t
 }
@@ -56,7 +56,7 @@ Gui, Karta:Add, Edit, w200, Firma %Firma%
 Gui, Karta:Add, Edit, w200, 1000
 Gui, Karta:Add, Edit, w200, ON
 Gui, Karta:Add, Edit, w200, uwagi
-Gui, Karta:Add, Edit, w200 vRabat, % Karty[Firma][Sel]
+Gui, Karta:Add, Edit, w200 vRabat, % Karty["k" Firma][Sel]
 Gui, Karta:Add, Edit, w200, T
 Gui, Karta:Show, x200 y200 w220 h260
 return
@@ -66,7 +66,7 @@ ZamknijKarte(zapisz)
     if (zapisz)
     {
         GuiControlGet, val, Karta:, Rabat
-        Karty[Firma][Sel] := val
+        Karty["k" Firma][Sel] := val
         Zapisy++
     }
     Gui, Karta:Destroy
@@ -93,7 +93,7 @@ Klawisz(wParam, lParam, msg, hwnd)
         }
         if (wParam = 0x79)
         {
-            if Karty.HasKey(Firma)
+            if Karty.HasKey("k" Firma)
                 SetTimer, OtworzListe, -400
             return 0
         }
