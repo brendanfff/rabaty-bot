@@ -5,7 +5,7 @@ SetWorkingDir, %A_ScriptDir%
 global Log := ""
 FileDelete, kasa_log.txt
 Gui, +AlwaysOnTop
-Gui, Add, Edit, w400 h300 Multi WantReturn
+Gui, Add, Edit, w400 h300 Multi WantReturn WantTab
 Gui, Show, w420 h320, Kasa TEST
 OnMessage(0x100, "Klawisz")   ; WM_KEYDOWN
 OnMessage(0x104, "Klawisz")   ; WM_SYSKEYDOWN (F10)
