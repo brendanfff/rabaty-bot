@@ -16,7 +16,7 @@ PytajO10Fn := Func("PytajO10")
 OnExit("PrzyZamknieciu")
 Menu, Tray, Tip, Rabaty - Ctrl+S start
 
-MsgBox, 64, Program Rabaty - Gotowy, Program czuwa w tle!`n`n1. Otworz w kasie okno z lista firm.`n2. Nacisnij [Ctrl + S] i wybierz plik .txt z rabatami.`n`n[Ctrl + K] = kalibracja pola rabatu (w oknie modyfikacji karty).`n[ESC] lub [Ctrl + P] = zatrzymanie (dziala tylko w trakcie wprowadzania).`n[Ctrl + Q] = zamkniecie programu.`n`nKarty oznaczone PB (nazwisko / imie / nr rej.) i z rabatem 0 sa pomijane.`nKarty z 10 gr bez oznaczenia PB - program zapyta (ustawienie Karty10BezPB w Rabaty.ini).
+MsgBox, 64, Program Rabaty - Gotowy, Program czuwa w tle!`n`n1. Otworz w kasie okno z lista firm.`n2. Nacisnij [Ctrl + S] i wybierz plik .txt z rabatami.`n`n[Ctrl + K] = kalibracja pola rabatu (w oknie modyfikacji karty).`n[ESC] lub [Ctrl + P] = zatrzymanie (dziala tylko w trakcie wprowadzania).`n[Ctrl + Q] = zamkniecie programu.`n`nKarty PB (oznaczenie w nazwisku / imieniu / nr rej.): zostaja na 10 gr,`nkarta PB z innym rabatem jest przywracana na 10 gr.`nKarty bez PB (takze z 10 gr) dostaja nowy rabat. Karty z rabatem 0 sa pomijane.
 return
 
 ; Esc i Ctrl+P przechwytywane TYLKO w trakcie wprowadzania - poza tym dzialaja normalnie w kasie.
@@ -100,7 +100,7 @@ PytajFirme(index, total, id, rabat, probny)
     tryb := probny ? "  [TRYB PROBNY]" : ""
     Gui, Pyt:New, +AlwaysOnTop -MinimizeBox, Potwierdzenie zmiany (%index%/%total%)%tryb%
     Gui, Pyt:Font, s10
-    Gui, Pyt:Add, Text, w420, Firma: %id%`nRabat (gr): %rabat%`n`nZmienic rabat na wszystkich kartach tej firmy?`n(karty PB i z rabatem 0 zostana pominiete)
+    Gui, Pyt:Add, Text, w420, Firma: %id%`nRabat (gr): %rabat%`n`nZmienic rabat na wszystkich kartach tej firmy?`n(karty PB zostana na 10 gr, karty z rabatem 0 pominiete)
     Gui, Pyt:Add, Button, w95 Default gPytTak, &Tak
     Gui, Pyt:Add, Button, x+8 w95 gPytNie, &Nie (pomin)
     Gui, Pyt:Add, Button, x+8 w150 gPytWszystkie, Tak dla &wszystkich
@@ -117,7 +117,7 @@ DodajDoRaportu(id, rabat, zmienione, p10, p0, status, pb := 0, z10 := 0, uwagi :
     if (zmienione == 0 && (p10 + p0 + pb) > 0 && !TakiSamRabat(rabat, "10"))
         uwaga .= "SPRAWDZ RECZNIE: nic nie zmieniono (wszystkie karty PB / 10 gr / 0); "
     if (z10 > 0)
-        uwaga .= "zmieniono " z10 " kart z 10 gr bez oznaczenia PB - sprawdz, czy to nie benzyna; "
+        uwaga .= "zmieniono " z10 " kart z 10 gr bez oznaczenia PB; "
     Raport.Push({"id": id, "rabat": rabat, "z": zmienione, "p10": p10, "p0": p0, "pb": pb, "z10": z10, "status": status, "uwaga": uwaga})
 }
 

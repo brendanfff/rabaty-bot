@@ -4,7 +4,7 @@ global OstatniBlad := ""
 global LiczbaZmienionych := 0
 global LogPlik := ""
 global OstPominiete10 := 0, OstPominiete0 := 0, ListaKlasa := ""
-global OstPB := 0, OstZmienione10 := 0, OstUwagi := "", PytajO10Fn := ""
+global OstPB := 0, OstPBNaprawione := 0, OstZmienione10 := 0, OstUwagi := "", PytajO10Fn := ""
 
 Log(t)
 {
@@ -22,7 +22,8 @@ InitUst()
     Ust.Tempo := 1.0          ; mnoznik wszystkich czasow
     Ust.BezPotwierdzen := 0   ; 1 = nie pytaj o kazda firme (przelacznik w oknie startowym)
     Ust.SlowaPB := "PB,PB95,PB98,BENZYNA,BENZ"   ; oznaczenia karty benzyny w nazwisku/imieniu/nr rej.
-    Ust.Karty10BezPB := "pytaj"  ; karty z 10 gr BEZ oznaczenia PB: pytaj / zmieniaj / pomijaj
+    Ust.Karty10BezPBTryb := "zmieniaj"  ; karty z 10 gr BEZ oznaczenia PB: zmieniaj / pytaj / pomijaj
+    Ust.RabatPB := 10         ; staly rabat kart PB - karta PB z innym rabatem jest przywracana na te wartosc
     Ust.IloscTab := 5         ; ile Tabow do pola rabatu (gdy brak kalibracji)
     Ust.PoleRabatu := ""      ; ClassNN pola rabatu (z kalibracji Ctrl+K), np. TEdit3
     Ust.OknoKarty := ""       ; okno modyfikacji karty (z kalibracji), np. ahk_class TFormKarta
@@ -265,7 +266,7 @@ CzyKartaPB(Dlg, Pole)
 
 DecyzjaO10(curID, curRabat, Dlg)
 {
-    tryb := Ust.Karty10BezPB
+    tryb := Ust.Karty10BezPBTryb
     if (tryb = "zmieniaj")
         return "tak"
     if (tryb = "pomijaj")
@@ -313,7 +314,7 @@ WprowadzFirme(FirmaHwnd, curID, curRabat, Probny := false)
 {
     InitUst()
     OstatniBlad := ""
-    OstPominiete10 := 0, OstPominiete0 := 0, OstPB := 0, OstZmienione10 := 0, OstUwagi := ""
+    OstPominiete10 := 0, OstPominiete0 := 0, OstPB := 0, OstPBNaprawione := 0, OstZmienione10 := 0, OstUwagi := ""
     Decyzja10 := ""
     Log("=== Firma " curID ", rabat " curRabat (Probny ? " (TRYB PROBNY - bez zapisu)" : ""))
     Aktywuj(FirmaHwnd)
@@ -405,14 +406,22 @@ WprowadzFirme(FirmaHwnd, curID, curRabat, Probny := false)
         Poprzednia := Karta
 
         Pominac := ""
+        Nowy := curRabat
         PB := CzyKartaPB(Dlg, Pole)
         if (PB != "")
         {
-            ; karta oznaczona jako benzyna (PB w nazwisku / imieniu / nr rej.) - stala znizka, nie ruszamy
-            Pominac := "karta PB (pole: " PB ")"
-            OstPB++
-            if !TakiSamRabat(Wartosc, "10")
-                OstUwagi .= "karta PB z rabatem " Wartosc " gr (zwykle 10) - sprawdz; "
+            ; karta benzyny (PB w nazwisku / imieniu / nr rej.) - staly rabat 10 gr
+            if TakiSamRabat(Wartosc, Ust.RabatPB)
+            {
+                Pominac := "karta PB z " Ust.RabatPB " gr (pole: " PB ")"
+                OstPB++
+            }
+            else
+            {
+                Nowy := Ust.RabatPB
+                OstPBNaprawione++
+                Log("Karta PB (pole: " PB ") ma rabat " Wartosc " - przywracam " Nowy " gr.")
+            }
         }
         else if TakiSamRabat(Wartosc, "0")
         {
@@ -469,7 +478,7 @@ WprowadzFirme(FirmaHwnd, curID, curRabat, Probny := false)
         }
         else if (Probny)
         {
-            Log("TRYB PROBNY: zmienilbym rabat " Wartosc " -> " curRabat " (zamykam bez zapisu).")
+            Log("TRYB PROBNY: zmienilbym rabat " Wartosc " -> " Nowy " (zamykam bez zapisu).")
             Send, {Esc}
             if !CzekajNaZamkniecie(Dlg)
             {
@@ -488,7 +497,7 @@ WprowadzFirme(FirmaHwnd, curID, curRabat, Probny := false)
                 return -1
             }
             Send, {End}+{Home}
-            Send, {Raw}%curRabat%
+            Send, {Raw}%Nowy%
             Czekaj("PoWpisaniu")
             Send, {F10}                 ; zapis karty
             if !CzekajNaZamkniecie(Dlg)
@@ -513,6 +522,8 @@ WprowadzFirme(FirmaHwnd, curID, curRabat, Probny := false)
         return -1
     }
     Czekaj("PoEsc")
+    if (OstPBNaprawione > 0)
+        OstUwagi .= "przywrocono " Ust.RabatPB " gr na " OstPBNaprawione " kartach PB; "
     Log("Firma " curID ": zmieniono " Zmienione " kart (w tym 10 gr bez PB: " OstZmienione10 "), pominieto: PB " OstPB ", 10 gr " OstPominiete10 ", 0 " OstPominiete0 ".")
     return Zmienione
 }
