@@ -4,6 +4,7 @@ global OstatniBlad := ""
 global LiczbaZmienionych := 0
 global LogPlik := ""
 global OstPominiete10 := 0, OstPominiete0 := 0, ListaKlasa := ""
+global OstPB := 0, OstZmienione10 := 0, OstUwagi := "", PytajO10Fn := ""
 
 Log(t)
 {
@@ -20,6 +21,8 @@ InitUst()
     Ust := {}
     Ust.Tempo := 1.0          ; mnoznik wszystkich czasow
     Ust.BezPotwierdzen := 0   ; 1 = nie pytaj o kazda firme (przelacznik w oknie startowym)
+    Ust.SlowaPB := "PB,PB95,PB98,BENZYNA,BENZ"   ; oznaczenia karty benzyny w nazwisku/imieniu/nr rej.
+    Ust.Karty10BezPB := "pytaj"  ; karty z 10 gr BEZ oznaczenia PB: pytaj / zmieniaj / pomijaj
     Ust.IloscTab := 5         ; ile Tabow do pola rabatu (gdy brak kalibracji)
     Ust.PoleRabatu := ""      ; ClassNN pola rabatu (z kalibracji Ctrl+K), np. TEdit3
     Ust.OknoKarty := ""       ; okno modyfikacji karty (z kalibracji), np. ahk_class TFormKarta
@@ -231,6 +234,47 @@ PrzejdzDoPolaRabatu(Dlg, ByRef Pole)
     return Wartosc
 }
 
+; Czy karta jest oznaczona jako benzyna: ktores pole tekstowe (nazwisko, imie, nr rej.) to "PB"
+; albo zawiera slowo PB i nie ma cyfr (zeby nie lapac tablic z Bialegostoku typu "PB 12345").
+; Zwraca tekst pola z oznaczeniem albo "".
+CzyKartaPB(Dlg, Pole)
+{
+    InitUst()
+    slowa := "," Ust.SlowaPB ","
+    WinGet, lista, ControlList, ahk_id %Dlg%
+    Loop, Parse, lista, `n
+    {
+        if (A_LoopField == Pole)
+            continue
+        ControlGetText, tx, %A_LoopField%, ahk_id %Dlg%
+        if (tx == "")
+            continue
+        StringUpper, tu, tx
+        zwarty := RegExReplace(tu, "[\s\.\-_,;:/]")
+        if (zwarty != "" && InStr(slowa, "," zwarty ","))
+            return tx
+        if !RegExMatch(tu, "\d")
+        {
+            Loop, Parse, tu, % " .-_,;:/"
+                if (A_LoopField != "" && InStr(slowa, "," A_LoopField ","))
+                    return tx
+        }
+    }
+    return ""
+}
+
+DecyzjaO10(curID, curRabat, Dlg)
+{
+    tryb := Ust.Karty10BezPB
+    if (tryb = "zmieniaj")
+        return "tak"
+    if (tryb = "pomijaj")
+        return "nie"
+    if IsObject(PytajO10Fn)
+        return PytajO10Fn.Call(curID, curRabat)
+    return "nie"
+}
+
 ; Dane karty (wszystkie pola okna OPROCZ pola rabatu) - rozpoznaje te sama karte.
 IdentyfikatorKarty(Dlg, Pole)
 {
@@ -269,7 +313,8 @@ WprowadzFirme(FirmaHwnd, curID, curRabat, Probny := false)
 {
     InitUst()
     OstatniBlad := ""
-    OstPominiete10 := 0, OstPominiete0 := 0
+    OstPominiete10 := 0, OstPominiete0 := 0, OstPB := 0, OstZmienione10 := 0, OstUwagi := ""
+    Decyzja10 := ""
     Log("=== Firma " curID ", rabat " curRabat (Probny ? " (TRYB PROBNY - bez zapisu)" : ""))
     Aktywuj(FirmaHwnd)
     if !FirmaHwnd
@@ -359,14 +404,60 @@ WprowadzFirme(FirmaHwnd, curID, curRabat, Probny := false)
         }
         Poprzednia := Karta
 
-        if (TakiSamRabat(Wartosc, "10") || TakiSamRabat(Wartosc, "0"))
+        Pominac := ""
+        PB := CzyKartaPB(Dlg, Pole)
+        if (PB != "")
         {
-            ; karta benzyny (10 gr) albo z rabatem 0 - nie ruszamy (jak w starym programie)
-            Log("Rabat " Wartosc " - karta pominieta bez zmian.")
-            if TakiSamRabat(Wartosc, "10")
+            ; karta oznaczona jako benzyna (PB w nazwisku / imieniu / nr rej.) - stala znizka, nie ruszamy
+            Pominac := "karta PB (pole: " PB ")"
+            OstPB++
+            if !TakiSamRabat(Wartosc, "10")
+                OstUwagi .= "karta PB z rabatem " Wartosc " gr (zwykle 10) - sprawdz; "
+        }
+        else if TakiSamRabat(Wartosc, "0")
+        {
+            Pominac := "rabat 0"
+            OstPominiete0++
+        }
+        else if TakiSamRabat(Wartosc, "10")
+        {
+            if TakiSamRabat(curRabat, "10")
+            {
+                Pominac := "ma juz 10 gr"
                 OstPominiete10++
+            }
             else
-                OstPominiete0++
+            {
+                ; 10 gr bez oznaczenia PB: moze to diesel z rabatem 10 gr, a moze nieoznaczona karta PB
+                if (Decyzja10 == "")
+                    Decyzja10 := DecyzjaO10(curID, curRabat, Dlg)
+                if (Decyzja10 == "stop")
+                {
+                    Send, {Esc}
+                    OstatniBlad := "Zatrzymano na pytaniu o karty 10 gr (firma " curID ")."
+                    Log("BLAD: " OstatniBlad)
+                    return -1
+                }
+                if (Decyzja10 == "tak")
+                {
+                    OstZmienione10++
+                    Log("10 gr bez oznaczenia PB - zmieniam (decyzja dla firmy).")
+                    Aktywuj(Dlg)
+                    ControlGetFocus, f, ahk_id %Dlg%
+                    if (Pole != "" && f != Pole)
+                        ControlFocus, %Pole%, ahk_id %Dlg%
+                }
+                else
+                {
+                    Pominac := "10 gr bez oznaczenia PB (decyzja: pomin)"
+                    OstPominiete10++
+                }
+            }
+        }
+
+        if (Pominac != "")
+        {
+            Log("Karta pominieta bez zmian: " Pominac ", rabat " Wartosc ".")
             Send, {Esc}
             if !CzekajNaZamkniecie(Dlg)
             {
@@ -422,7 +513,7 @@ WprowadzFirme(FirmaHwnd, curID, curRabat, Probny := false)
         return -1
     }
     Czekaj("PoEsc")
-    Log("Firma " curID ": zmieniono " Zmienione " kart, pominieto (10/0 gr): " Pominiete ".")
+    Log("Firma " curID ": zmieniono " Zmienione " kart (w tym 10 gr bez PB: " OstZmienione10 "), pominieto: PB " OstPB ", 10 gr " OstPominiete10 ", 0 " OstPominiete0 ".")
     return Zmienione
 }
 

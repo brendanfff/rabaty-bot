@@ -12,10 +12,11 @@ global OdpStart := "", ChkAuto := 0, ChkProbny := 0
 
 WczytajUstawienia(A_ScriptDir "\Rabaty.ini")
 LogPlik := A_ScriptDir "\rabaty_log.txt"
+PytajO10Fn := Func("PytajO10")
 OnExit("PrzyZamknieciu")
 Menu, Tray, Tip, Rabaty - Ctrl+S start
 
-MsgBox, 64, Program Rabaty - Gotowy, Program czuwa w tle!`n`n1. Otworz w kasie okno z lista firm.`n2. Nacisnij [Ctrl + S] i wybierz plik .txt z rabatami.`n`n[Ctrl + K] = kalibracja pola rabatu (w oknie modyfikacji karty).`n[ESC] lub [Ctrl + P] = zatrzymanie (dziala tylko w trakcie wprowadzania).`n[Ctrl + Q] = zamkniecie programu.`n`nKarty z rabatem 10 gr lub 0 sa pomijane i trafiaja do raportu.
+MsgBox, 64, Program Rabaty - Gotowy, Program czuwa w tle!`n`n1. Otworz w kasie okno z lista firm.`n2. Nacisnij [Ctrl + S] i wybierz plik .txt z rabatami.`n`n[Ctrl + K] = kalibracja pola rabatu (w oknie modyfikacji karty).`n[ESC] lub [Ctrl + P] = zatrzymanie (dziala tylko w trakcie wprowadzania).`n[Ctrl + Q] = zamkniecie programu.`n`nKarty oznaczone PB (nazwisko / imie / nr rej.) i z rabatem 0 sa pomijane.`nKarty z 10 gr bez oznaczenia PB - program zapyta (ustawienie Karty10BezPB w Rabaty.ini).
 return
 
 ; Esc i Ctrl+P przechwytywane TYLKO w trakcie wprowadzania - poza tym dzialaja normalnie w kasie.
@@ -99,7 +100,7 @@ PytajFirme(index, total, id, rabat, probny)
     tryb := probny ? "  [TRYB PROBNY]" : ""
     Gui, Pyt:New, +AlwaysOnTop -MinimizeBox, Potwierdzenie zmiany (%index%/%total%)%tryb%
     Gui, Pyt:Font, s10
-    Gui, Pyt:Add, Text, w420, Firma: %id%`nRabat (gr): %rabat%`n`nZmienic rabat na wszystkich kartach tej firmy?`n(karty z 10 gr i 0 zostana pominiete)
+    Gui, Pyt:Add, Text, w420, Firma: %id%`nRabat (gr): %rabat%`n`nZmienic rabat na wszystkich kartach tej firmy?`n(karty PB i z rabatem 0 zostana pominiete)
     Gui, Pyt:Add, Button, w95 Default gPytTak, &Tak
     Gui, Pyt:Add, Button, x+8 w95 gPytNie, &Nie (pomin)
     Gui, Pyt:Add, Button, x+8 w150 gPytWszystkie, Tak dla &wszystkich
@@ -110,12 +111,25 @@ PytajFirme(index, total, id, rabat, probny)
     return OdpFirmy
 }
 
-DodajDoRaportu(id, rabat, zmienione, p10, p0, status)
+DodajDoRaportu(id, rabat, zmienione, p10, p0, status, pb := 0, z10 := 0, uwagi := "")
 {
-    uwaga := ""
-    if (zmienione == 0 && (p10 + p0) > 0 && !TakiSamRabat(rabat, "10"))
-        uwaga := "SPRAWDZ RECZNIE: wszystkie karty mialy 10 gr / 0 - nic nie zmieniono"
-    Raport.Push({"id": id, "rabat": rabat, "z": zmienione, "p10": p10, "p0": p0, "status": status, "uwaga": uwaga})
+    uwaga := uwagi
+    if (zmienione == 0 && (p10 + p0 + pb) > 0 && !TakiSamRabat(rabat, "10"))
+        uwaga .= "SPRAWDZ RECZNIE: nic nie zmieniono (wszystkie karty PB / 10 gr / 0); "
+    if (z10 > 0)
+        uwaga .= "zmieniono " z10 " kart z 10 gr bez oznaczenia PB - sprawdz, czy to nie benzyna; "
+    Raport.Push({"id": id, "rabat": rabat, "z": zmienione, "p10": p10, "p0": p0, "pb": pb, "z10": z10, "status": status, "uwaga": uwaga})
+}
+
+PytajO10(curID, curRabat)
+{
+    SoundBeep, 900, 200
+    MsgBox, 262147, Karty 10 gr bez oznaczenia PB, Firma %curID% ma karte z rabatem 10 gr, ale BEZ oznaczenia PB`n(w nazwisku, imieniu ani nr rejestracyjnym).`n`nTo moze byc diesel z rabatem 10 gr albo nieoznaczona karta benzyny.`n`n[Tak] = zmien takie karty tej firmy na %curRabat% gr`n[Nie] = zostaw je z 10 gr`n[Anuluj] = zatrzymaj program`n`n(Decyzja dotyczy wszystkich takich kart tej firmy.)
+    IfMsgBox, Yes
+        return "tak"
+    IfMsgBox, No
+        return "nie"
+    return "stop"
 }
 
 ZapiszRaport(koniec)
@@ -125,15 +139,16 @@ ZapiszRaport(koniec)
     FormatTime, teraz,, yyyy-MM-dd HH:mm
     t := "RAPORT RABATY - " teraz "`r`nPlik: " RaportInfo.plik "`r`nTryb: " (RaportInfo.probny ? "PROBNY (nic nie zapisano)" : "normalny") "`r`nWynik: " koniec "`r`n`r`n"
     sz := 0, sz10 := 0, sz0 := 0, uw := ""
-    t .= "ID;RABAT;ZMIENIONE KARTY;POMINIETE 10 GR;POMINIETE 0;STATUS;UWAGI`r`n"
+    t .= "ID;RABAT;ZMIENIONE KARTY;W TYM 10 GR BEZ PB;POMINIETE PB;POMINIETE 10 GR;POMINIETE 0;STATUS;UWAGI`r`n"
+    szpb := 0
     for i, r in Raport
     {
-        t .= r.id ";" r.rabat ";" r.z ";" r.p10 ";" r.p0 ";" r.status ";" r.uwaga "`r`n"
-        sz += r.z, sz10 += r.p10, sz0 += r.p0
+        t .= r.id ";" r.rabat ";" r.z ";" r.z10 ";" r.pb ";" r.p10 ";" r.p0 ";" r.status ";" r.uwaga "`r`n"
+        sz += r.z, sz10 += r.p10, sz0 += r.p0, szpb += r.pb
         if (r.uwaga != "" || (r.status != "OK" && r.status != "pominieta przez uzytkownika"))
             uw .= "  " r.id " - " (r.uwaga != "" ? r.uwaga : r.status) "`r`n"
     }
-    t .= "`r`nRAZEM: zmienione karty " (RaportInfo.probny ? "(zmienilby) " : "") sz ", pominiete 10 gr: " sz10 ", pominiete 0: " sz0 "`r`n"
+    t .= "`r`nRAZEM: zmienione karty " (RaportInfo.probny ? "(zmienilby) " : "") sz ", pominiete karty PB: " szpb ", pominiete 10 gr: " sz10 ", pominiete 0: " sz0 "`r`n"
     t .= "`r`nDO SPRAWDZENIA RECZNIE:`r`n" (uw != "" ? uw : "  brak`r`n")
     FileDelete, % RaportInfo.raport
     FileAppend, %t%, % RaportInfo.raport
@@ -284,7 +299,7 @@ GlowneWprowadzanie()
         }
         if (wynik < 0)
         {
-            DodajDoRaportu(curID, curRabat, 0, OstPominiete10, OstPominiete0, "BLAD: " StrReplace(OstatniBlad, "`n", " "))
+            DodajDoRaportu(curID, curRabat, 0, OstPominiete10, OstPominiete0, "BLAD: " StrReplace(OstatniBlad, "`n", " "), OstPB, OstZmienione10, OstUwagi)
             Koniec := "ZATRZYMANO na firmie " curID " - blad"
             ZapiszRaport(Koniec)
             Przetwarzanie := false
@@ -292,8 +307,8 @@ GlowneWprowadzanie()
             MsgBox, 16, Zatrzymano, %OstatniBlad%`n`nProgram zatrzymal sie, zeby nic nie wpisac w zle miejsce. Sprawdz okna w kasie.`nSzczegoly: rabaty_log.txt i raport.`nPrzy nastepnym Ctrl+S mozna wznowic od tej firmy.
             return
         }
-        DodajDoRaportu(curID, curRabat, wynik, OstPominiete10, OstPominiete0, "OK")
-        TrayTip, Rabaty, Firma %curID%: kart: %wynik%`, pominiete 10/0: %OstPominiete10%/%OstPominiete0%, 2
+        DodajDoRaportu(curID, curRabat, wynik, OstPominiete10, OstPominiete0, "OK", OstPB, OstZmienione10, OstUwagi)
+        TrayTip, Rabaty, Firma %curID%: kart: %wynik%`, pominiete PB/10/0: %OstPB%/%OstPominiete10%/%OstPominiete0%, 2
         if !Probny
             IniWrite, % index + 1, %PlikPostepu%, Postep, Nastepna
     }

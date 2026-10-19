@@ -4,11 +4,16 @@
 SetWorkingDir, %A_ScriptDir%
 SetBatchLines, -1
 global Karty := {}
-for f, r in {"k1001": [5, 5, 5], "k1002": [7], "k1003": [20, 3], "k1004": [1, 2, 3, 4], "k1005": [1, 2, 3], "k1006": [1, 10, 0, 4]}
+for f, r in {"k1001": [5, 5, 5], "k1002": [7], "k1003": [20, 3], "k1004": [1, 2, 3, 4], "k1005": [1, 2, 3], "k1006": [1, 10, 0, 4], "k1007": [[10, "PB", ""], [10, "", ""], [20, "PB 12345", ""], [10, "", ". pb ."]], "k1008": [10, 30]}
 {
     Karty[f] := []
     for i, v in r
-        Karty[f].Push({"n": "K" SubStr(f, 2) "-" i, "r": v})
+    {
+        if IsObject(v)
+            Karty[f].Push({"n": "K" SubStr(f, 2) "-" i, "r": v[1], "rej": v[2], "nazw": v[3]})
+        else
+            Karty[f].Push({"n": "K" SubStr(f, 2) "-" i, "r": v, "rej": "", "nazw": ""})
+    }
 }
 global Firma := "", Sel := 1, Zapisy := 0, Zdarzenia := ""
 global FirmyHwnd := 0, ListaHwnd := 0, KartaHwnd := 0
@@ -59,10 +64,10 @@ OtworzKarte:
 GuiControlGet, Sel, Lista:, LB
 Gui, Karta:New, +HwndKartaHwnd, Modyfikacja karty
 Gui, Karta:Add, Edit, w200 ReadOnly, % Karty["k" Firma][Sel].n
-Gui, Karta:Add, Edit, w200, Firma %Firma%
+Gui, Karta:Add, Edit, w200, % Karty["k" Firma][Sel].nazw
 Gui, Karta:Add, Edit, w200, 1000
 Gui, Karta:Add, Edit, w200, ON
-Gui, Karta:Add, Edit, w200, uwagi
+Gui, Karta:Add, Edit, w200, % Karty["k" Firma][Sel].rej
 Gui, Karta:Add, Edit, w200 vRabat, % Karty["k" Firma][Sel].r
 Gui, Karta:Add, Edit, w200, T
 Gui, Karta:Show, x200 y200 w220 h260
