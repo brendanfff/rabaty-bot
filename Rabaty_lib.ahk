@@ -19,6 +19,7 @@ InitUst()
         return
     Ust := {}
     Ust.Tempo := 1.0          ; mnoznik wszystkich czasow
+    Ust.BezPotwierdzen := 0   ; 1 = nie pytaj o kazda firme (przelacznik w oknie startowym)
     Ust.IloscTab := 5         ; ile Tabow do pola rabatu (gdy brak kalibracji)
     Ust.PoleRabatu := ""      ; ClassNN pola rabatu (z kalibracji Ctrl+K), np. TEdit3
     Ust.OknoKarty := ""       ; okno modyfikacji karty (z kalibracji), np. ahk_class TFormKarta

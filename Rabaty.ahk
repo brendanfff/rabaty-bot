@@ -8,6 +8,7 @@ global Przetwarzanie := false
 global Raport := [], RaportInfo := {}
 global PlikPostepu := A_ScriptDir "\Rabaty_postep.ini"
 global OdpFirmy := ""
+global OdpStart := "", ChkAuto := 0, ChkProbny := 0
 
 WczytajUstawienia(A_ScriptDir "\Rabaty.ini")
 LogPlik := A_ScriptDir "\rabaty_log.txt"
@@ -59,6 +60,18 @@ PytKoniec:
 PytGuiClose:
 OdpFirmy := "koniec"
 Gui, Pyt:Destroy
+return
+
+StartOK:
+Gui, Start:Submit
+OdpStart := "start"
+Gui, Start:Destroy
+return
+StartAnuluj:
+StartGuiClose:
+StartGuiEscape:
+OdpStart := "anuluj"
+Gui, Start:Destroy
 return
 
 #Include %A_ScriptDir%\Rabaty_lib.ahk
@@ -187,24 +200,40 @@ GlowneWprowadzanie()
     }
 
     info10 := CountTens > 0 ? "`nFirm z rabatem 10 gr w pliku: " CountTens " (to moze byc normalne - sprawdz raport na koniec)" : ""
-    MsgBox, 262147, Wczytano plik, Plik: %NazwaPliku%`nCena na slupie: %CenaSlupa%`nLiczba firm: %TotalValid%%info10%`nStart od firmy nr: %Start%`n`nUpewnij sie, ze w kasie jest otwarte okno z lista firm.`n`n[Tak] = wprowadzaj rabaty`n[Nie] = TRYB PROBNY (przejdzie po kartach, nic nie zapisze)`n[Anuluj] = nic nie rob
-    IfMsgBox, Cancel
+    ; okno startowe z przelacznikami
+    OdpStart := ""
+    auto := Ust.BezPotwierdzen ? 1 : 0
+    Gui, Start:New, +AlwaysOnTop -MinimizeBox, Wczytano plik
+    Gui, Start:Font, s10
+    Gui, Start:Add, Text, w440, Plik: %NazwaPliku%`nCena na slupie: %CenaSlupa%`nLiczba firm: %TotalValid%%info10%`nStart od firmy nr: %Start%`n`nUpewnij sie, ze w kasie jest otwarte okno z lista firm.
+    Gui, Start:Add, CheckBox, vChkAuto Checked%auto% y+12, Wprowadzaj &bez potwierdzania kazdej firmy (automatycznie)
+    Gui, Start:Add, CheckBox, vChkProbny, Tryb &probny (przejdzie po kartach, nic nie zapisze w kasie)
+    Gui, Start:Add, Text, w440 cGray, Zatrzymanie w kazdej chwili: Esc lub Ctrl + P.
+    Gui, Start:Add, Button, w110 Default gStartOK y+12, &Start
+    Gui, Start:Add, Button, x+10 w110 gStartAnuluj, Anuluj
+    Gui, Start:Show
+    while (OdpStart == "")
+        Sleep, 50
+    if (OdpStart != "start")
         return
-    Probny := false
-    IfMsgBox, No
-        Probny := true
+    Probny := ChkProbny ? true : false
+    if ((ChkAuto ? 1 : 0) != Ust.BezPotwierdzen)
+    {
+        Ust.BezPotwierdzen := ChkAuto ? 1 : 0
+        ZapiszUstawienia(A_ScriptDir "\Rabaty.ini")
+    }
 
     FormatTime, znacznik,, yyyy-MM-dd_HHmm
     Raport := []
     RaportInfo := {"plik": Sciezka, "probny": Probny, "raport": A_ScriptDir "\raport_" znacznik (Probny ? "_probny" : "") ".txt"}
     LiczbaZmienionych := 0
     FileDelete, %LogPlik%
-    Log("Plik: " Sciezka ", firm: " TotalValid ", start od: " Start (Probny ? ", TRYB PROBNY" : ""))
+    Log("Plik: " Sciezka ", firm: " TotalValid ", start od: " Start (Probny ? ", TRYB PROBNY" : "") (ChkAuto ? ", BEZ POTWIERDZEN" : ""))
 
     Przetwarzanie := true
     SoundBeep, 1000, 150
     Sleep, 300
-    Wszystkie := false
+    Wszystkie := Ust.BezPotwierdzen ? true : false
     Koniec := "ZAKONCZONO - cala lista"
 
     for index, item in FirmList
