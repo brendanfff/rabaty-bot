@@ -154,6 +154,11 @@ WczytajRabaty(Sciezka, ByRef CenaSlupa, ByRef FirmList, ByRef Blad)
         fRabat := Trim(Fields[3], " `t")
         if (fID == "" || fRabat == "")
             continue
+        ; rabat na minusie (cena firmy wyzsza niz slup) = 0 gr rabatu
+        r := StrReplace(fRabat, ",", ".")
+        if r is number
+            if (r < 0)
+                fRabat := "0"
         FirmList.Push({"id": fID, "cena": fCena, "rabat": fRabat})
     }
     if (FirmList.Length() == 0)
@@ -422,11 +427,6 @@ WprowadzFirme(FirmaHwnd, curID, curRabat, Probny := false)
                 OstPBNaprawione++
                 Log("Karta PB (pole: " PB ") ma rabat " Wartosc " - przywracam " Nowy " gr.")
             }
-        }
-        else if TakiSamRabat(Wartosc, "0")
-        {
-            Pominac := "rabat 0"
-            OstPominiete0++
         }
         else if TakiSamRabat(Wartosc, "10")
         {

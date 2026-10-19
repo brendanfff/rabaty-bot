@@ -16,7 +16,9 @@ Sprawdz(warunek, opis)
 ok := WczytajRabaty(A_ScriptDir "\rabaty_test.txt", Cena, Firmy, Blad)
 Sprawdz(ok, "wczytanie pliku testowego")
 Sprawdz(Cena == "6.49", "cena slupa = 6.49 (jest: " Cena ")")
-Sprawdz(Firmy.Length() == 5, "5 firm (jest: " Firmy.Length() ")")
+Sprawdz(Firmy.Length() == 7, "7 firm (jest: " Firmy.Length() ")")
+Sprawdz(Firmy[6].rabat == "0", "rabat na minusie -> 0 (jest: " Firmy[6].rabat ")")
+Sprawdz(Firmy[7].rabat == "0", "rabat 0 zostaje 0")
 Sprawdz(Firmy[1].id == "1001" && Firmy[1].rabat == "10", "firma 1 = 1001 / 10")
 Sprawdz(Firmy[3].id == "1003" && Firmy[3].rabat == "30", "spacje obciete: 1003 / 30")
 Sprawdz(Firmy[4].id == "A+1#", "ID ze znakami specjalnymi")
@@ -60,7 +62,7 @@ w6 := WprowadzFirme(FirmaHwnd, "1005", "41")
 Sprawdz(w6 == 3, "1005 (kursor ucieka z tabeli): zmieniono 3 karty (jest: " w6 ") " OstatniBlad)
 ; jak w PetrolStationCL: lista wraca na gore po kazdym zamknieciu karty (zapis i Esc), karty 10 i 0 pomijane
 w7 := WprowadzFirme(FirmaHwnd, "1006", "41")
-Sprawdz(w7 == 3 && OstZmienione10 == 1 && OstPominiete0 == 1, "1006 (powrot na gore, 10 bez PB zmieniane, 0 pomijane): zmieniono 3 karty (jest: " w7 ") " OstatniBlad)
+Sprawdz(w7 == 4 && OstZmienione10 == 1, "1006 (powrot na gore, 10 bez PB i 0 zmieniane): zmieniono 4 karty (jest: " w7 ") " OstatniBlad)
 ; nieistniejaca firma - musi sie bezpiecznie zatrzymac
 w4 := WprowadzFirme(FirmaHwnd, "9999", "15")
 Sprawdz(w4 == -2 && InStr(OstatniBlad, "listy kart"), "nieznana firma -> wykryta (do pominiecia)")
@@ -74,18 +76,21 @@ Ust.Karty10BezPBTryb := "pomijaj"
 w10 := WprowadzFirme(FirmaHwnd, "1008", "45")
 Sprawdz(w10 == 1 && OstPominiete10 == 1, "1008 tryb pomijaj: zmieniono 1, 10 gr zostawione (jest: " w10 ")")
 Ust.Karty10BezPBTryb := "zmieniaj"
+; rabat 0 gr z pliku: wprowadza 0 na zwyklych kartach, karta PB zostaje 10
+w12 := WprowadzFirme(FirmaHwnd, "1010", "0")
+Sprawdz(w12 == 2 && OstPB == 1, "1010 rabat 0 gr: zwykle karty -> 0, PB zostaje 10 (jest: " w12 ")")
 ; karta PB z innym rabatem niz 10 (takze 0) -> przywrocenie 10 gr
 w11 := WprowadzFirme(FirmaHwnd, "1009", "45")
 Sprawdz(w11 == 3 && OstPBNaprawione == 2, "1009 karty PB z 45 i 0 -> 10 gr, zwykla -> 45 (jest: " w11 ", naprawione PB " OstPBNaprawione ")")
 ; tryb probny: nic nie zapisuje
 w8 := WprowadzFirme(FirmaHwnd, "1006", "55", true)
-Sprawdz(w8 == 3 && OstPominiete0 == 1, "tryb probny: zmienilby 3, pominal 0 (jest: " w8 ")")
+Sprawdz(w8 == 4, "tryb probny: zmienilby 4 (jest: " w8 ")")
 
 Sleep, 600
 FileRead, Stan, %A_ScriptDir%\kasa_stan.txt
 WinClose, ahk_id %FirmaHwnd%
-Sprawdz(InStr(Stan, "1001=30,30,30|1002=20|1003=20,20|1004=25,25,25,25|1005=41,41,41|1006=41,41,0,41|1007=10,45,45,10|1008=10,45|1009=10,10,45"), "rabaty na wszystkich kartach zmienione")
-Sprawdz(InStr(Stan, "Zapisy=22"), "dokladnie 22 zapisow kart (bez zbednych)")
+Sprawdz(InStr(Stan, "1001=30,30,30|1002=20|1003=20,20|1004=25,25,25,25|1005=41,41,41|1006=41,41,41,41|1007=10,45,45,10|1008=10,45|1009=10,10,45|1010=0,10,0"), "rabaty na wszystkich kartach zmienione")
+Sprawdz(InStr(Stan, "Zapisy=25"), "dokladnie 25 zapisow kart (bez zbednych)")
 Sprawdz(InStr(Stan, "Lista=0") && InStr(Stan, "Karta=0"), "wszystkie okna kart zamkniete")
 Wynik .= "--- stan kasy ---`n" Stan "`n---`n"
 

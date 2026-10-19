@@ -16,7 +16,7 @@ PytajO10Fn := Func("PytajO10")
 OnExit("PrzyZamknieciu")
 Menu, Tray, Tip, Rabaty - Ctrl+S start
 
-MsgBox, 64, Program Rabaty - Gotowy, Program czuwa w tle!`n`n1. Otworz w kasie okno z lista firm.`n2. Nacisnij [Ctrl + S] i wybierz plik .txt z rabatami.`n`n[Ctrl + K] = kalibracja pola rabatu (w oknie modyfikacji karty).`n[ESC] lub [Ctrl + P] = zatrzymanie (dziala tylko w trakcie wprowadzania).`n[Ctrl + Q] = zamkniecie programu.`n`nKarty PB (oznaczenie w nazwisku / imieniu / nr rej.): zostaja na 10 gr,`nkarta PB z innym rabatem jest przywracana na 10 gr.`nKarty bez PB (takze z 10 gr) dostaja nowy rabat. Karty z rabatem 0 sa pomijane.
+MsgBox, 64, Program Rabaty - Gotowy, Program czuwa w tle!`n`n1. Otworz w kasie okno z lista firm.`n2. Nacisnij [Ctrl + S] i wybierz plik .txt z rabatami.`n`n[Ctrl + K] = kalibracja pola rabatu (w oknie modyfikacji karty).`n[ESC] lub [Ctrl + P] = zatrzymanie (dziala tylko w trakcie wprowadzania).`n[Ctrl + Q] = zamkniecie programu.`n`nKarty PB (oznaczenie w nazwisku / imieniu / nr rej.): zostaja na 10 gr,`nkarta PB z innym rabatem jest przywracana na 10 gr.`nKarty bez PB dostaja rabat z pliku (takze 0 gr). Rabat na minusie w pliku = 0 gr.
 return
 
 ; Esc i Ctrl+P przechwytywane TYLKO w trakcie wprowadzania - poza tym dzialaja normalnie w kasie.
@@ -100,7 +100,7 @@ PytajFirme(index, total, id, rabat, probny)
     tryb := probny ? "  [TRYB PROBNY]" : ""
     Gui, Pyt:New, +AlwaysOnTop -MinimizeBox, Potwierdzenie zmiany (%index%/%total%)%tryb%
     Gui, Pyt:Font, s10
-    Gui, Pyt:Add, Text, w420, Firma: %id%`nRabat (gr): %rabat%`n`nZmienic rabat na wszystkich kartach tej firmy?`n(karty PB zostana na 10 gr, karty z rabatem 0 pominiete)
+    Gui, Pyt:Add, Text, w420, Firma: %id%`nRabat (gr): %rabat%`n`nZmienic rabat na wszystkich kartach tej firmy?`n(karty PB zostana na 10 gr)
     Gui, Pyt:Add, Button, w95 Default gPytTak, &Tak
     Gui, Pyt:Add, Button, x+8 w95 gPytNie, &Nie (pomin)
     Gui, Pyt:Add, Button, x+8 w150 gPytWszystkie, Tak dla &wszystkich
