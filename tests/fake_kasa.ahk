@@ -4,7 +4,7 @@
 SetWorkingDir, %A_ScriptDir%
 SetBatchLines, -1
 global Karty := {}
-for f, r in {"k1001": [5, 5, 5], "k1002": [7], "k1003": [20, 3], "k1004": [1, 2, 3, 4], "k1005": [1, 2, 3], "k1006": [1, 10, 0, 4], "k1007": [[10, "PB", ""], [10, "", ""], [20, "PB 12345", ""], [10, "", ". pb ."]], "k1008": [10, 30], "k1009": [[45, "PB", ""], [0, "", "PB"], [30, "", ""]], "k1010": [40, [10, "PB", ""], 0]}
+for f, r in {"k1001": [5, 5, 5], "k1002": [7], "k1003": [20, 3], "k1004": [1, 2, 3, 4], "k1005": [1, 2, 3], "k1006": [1, 10, 0, 4], "k1007": [[10, "PB", ""], [10, "", ""], [20, "PB 12345", ""], [10, "", ". pb ."]], "k1008": [10, 30], "k1009": [[45, "PB", ""], [0, "", "PB"], [30, "", ""]], "k1010": [40, [10, "PB", ""], 0], "k1011": [], "k1013": [5]}
 {
     Karty[f] := []
     for i, v in r
@@ -60,6 +60,10 @@ Gui, Lista:Show, x150 y150 w320 h170
 GuiControl, Lista:Focus, LB
 return
 
+KomunikatBrakKart:
+MsgBox, 48, Kasa TEST, Firma nie ma zadnych kart.
+return
+
 OtworzKarte:
 GuiControlGet, Sel, Lista:, LB
 Gui, Karta:New, +HwndKartaHwnd, Modyfikacja karty
@@ -108,7 +112,9 @@ Klawisz(wParam, lParam, msg, hwnd)
         }
         if (wParam = 0x79)
         {
-            if Karty.HasKey("k" Firma)
+            if (Firma = "1012")
+                SetTimer, KomunikatBrakKart, -300
+            else if Karty.HasKey("k" Firma)
                 SetTimer, OtworzListe, -400
             return 0
         }
@@ -117,7 +123,8 @@ Klawisz(wParam, lParam, msg, hwnd)
     {
         if (wParam = 0x73)
         {
-            SetTimer, OtworzKarte, -400
+            if (Karty["k" Firma].Length() > 0)
+                SetTimer, OtworzKarte, -400
             return 0
         }
         if (wParam = 0x1B)

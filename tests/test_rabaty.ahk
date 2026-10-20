@@ -79,6 +79,15 @@ Ust.Karty10BezPBTryb := "zmieniaj"
 ; rabat 0 gr z pliku: wprowadza 0 na zwyklych kartach, karta PB zostaje 10
 w12 := WprowadzFirme(FirmaHwnd, "1010", "0")
 Sprawdz(w12 == 2 && OstPB == 1, "1010 rabat 0 gr: zwykle karty -> 0, PB zostaje 10 (jest: " w12 ")")
+; bledy niekrytyczne: firma z pusta lista kart i firma, dla ktorej kasa pokazuje komunikat -> powrot do okna firm
+w13 := WprowadzFirme(FirmaHwnd, "1011", "30")
+Sprawdz(w13 == -1, "1011 pusta lista kart -> blad (jest: " w13 ")")
+Sprawdz(PowrotDoFirm(FirmaHwnd), "1011 -> powrot do okna firm (Esc na liscie)")
+w14 := WprowadzFirme(FirmaHwnd, "1012", "30")
+Sprawdz(w14 == -1 && InStr(OstatniBlad, "inne okno"), "1012 komunikat kasy zamiast listy -> blad (jest: " w14 ")")
+Sprawdz(PowrotDoFirm(FirmaHwnd), "1012 -> powrot do okna firm (Esc na komunikacie)")
+w15 := WprowadzFirme(FirmaHwnd, "1013", "7")
+Sprawdz(w15 == 1, "po bledach program dziala dalej: 1013 zmieniona (jest: " w15 ") " OstatniBlad)
 ; karta PB z innym rabatem niz 10 (takze 0) -> przywrocenie 10 gr
 w11 := WprowadzFirme(FirmaHwnd, "1009", "45")
 Sprawdz(w11 == 3 && OstPBNaprawione == 2, "1009 karty PB z 45 i 0 -> 10 gr, zwykla -> 45 (jest: " w11 ", naprawione PB " OstPBNaprawione ")")
@@ -89,8 +98,8 @@ Sprawdz(w8 == 4, "tryb probny: zmienilby 4 (jest: " w8 ")")
 Sleep, 600
 FileRead, Stan, %A_ScriptDir%\kasa_stan.txt
 WinClose, ahk_id %FirmaHwnd%
-Sprawdz(InStr(Stan, "1001=30,30,30|1002=20|1003=20,20|1004=25,25,25,25|1005=41,41,41|1006=41,41,41,41|1007=10,45,45,10|1008=10,45|1009=10,10,45|1010=0,10,0"), "rabaty na wszystkich kartach zmienione")
-Sprawdz(InStr(Stan, "Zapisy=25"), "dokladnie 25 zapisow kart (bez zbednych)")
+Sprawdz(InStr(Stan, "1001=30,30,30|1002=20|1003=20,20|1004=25,25,25,25|1005=41,41,41|1006=41,41,41,41|1007=10,45,45,10|1008=10,45|1009=10,10,45|1010=0,10,0|1011=|1013=7"), "rabaty na wszystkich kartach zmienione")
+Sprawdz(InStr(Stan, "Zapisy=26"), "dokladnie 26 zapisow kart (bez zbednych)")
 Sprawdz(InStr(Stan, "Lista=0") && InStr(Stan, "Karta=0"), "wszystkie okna kart zamkniete")
 Wynik .= "--- stan kasy ---`n" Stan "`n---`n"
 

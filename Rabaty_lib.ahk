@@ -4,6 +4,7 @@ global OstatniBlad := ""
 global LiczbaZmienionych := 0
 global LogPlik := ""
 global OstPominiete10 := 0, OstPominiete0 := 0, ListaKlasa := ""
+global OstZmienioneKart := 0
 global OstPB := 0, OstPBNaprawione := 0, OstZmienione10 := 0, OstUwagi := "", PytajO10Fn := ""
 
 Log(t)
@@ -321,6 +322,7 @@ WprowadzFirme(FirmaHwnd, curID, curRabat, Probny := false)
     OstatniBlad := ""
     OstPominiete10 := 0, OstPominiete0 := 0, OstPB := 0, OstPBNaprawione := 0, OstZmienione10 := 0, OstUwagi := ""
     Decyzja10 := ""
+    OstZmienioneKart := 0
     Log("=== Firma " curID ", rabat " curRabat (Probny ? " (TRYB PROBNY - bez zapisu)" : ""))
     Aktywuj(FirmaHwnd)
     if !FirmaHwnd
@@ -444,8 +446,8 @@ WprowadzFirme(FirmaHwnd, curID, curRabat, Probny := false)
                 {
                     Send, {Esc}
                     OstatniBlad := "Zatrzymano na pytaniu o karty 10 gr (firma " curID ")."
-                    Log("BLAD: " OstatniBlad)
-                    return -1
+                    Log("STOP: " OstatniBlad)
+                    return -3
                 }
                 if (Decyzja10 == "tak")
                 {
@@ -507,6 +509,7 @@ WprowadzFirme(FirmaHwnd, curID, curRabat, Probny := false)
                 return -1
             }
             Zmienione++
+            OstZmienioneKart := Zmienione
             LiczbaZmienionych++
             Log("Zapisano karte " k + 1)
         }
@@ -526,6 +529,47 @@ WprowadzFirme(FirmaHwnd, curID, curRabat, Probny := false)
         OstUwagi .= "przywrocono " Ust.RabatPB " gr na " OstPBNaprawione " kartach PB; "
     Log("Firma " curID ": zmieniono " Zmienione " kart (w tym 10 gr bez PB: " OstZmienione10 "), pominieto: PB " OstPB ", 10 gr " OstPominiete10 ", 0 " OstPominiete0 ".")
     return Zmienione
+}
+
+; Po bledzie: zamyka Esc otwarte okna kasy (karta, lista kart, komunikat), az aktywne bedzie okno firm.
+; Esc wysylany TYLKO do okien kasy (ten sam proces co okno firm). Zwraca true, gdy udalo sie wrocic.
+PowrotDoFirm(FirmaHwnd)
+{
+    InitUst()
+    if (!FirmaHwnd || !WinExist("ahk_id " FirmaHwnd))
+    {
+        Log("POWROT: okno firm nie istnieje.")
+        return false
+    }
+    WinGet, KasaPID, PID, ahk_id %FirmaHwnd%
+    Loop, 8
+    {
+        if WinActive("ahk_id " FirmaHwnd)
+        {
+            Sleep, 300
+            if WinActive("ahk_id " FirmaHwnd)
+            {
+                Log("POWROT: jestem z powrotem w oknie firm.")
+                return true
+            }
+        }
+        WinGet, h, ID, A
+        WinGet, pid, PID, ahk_id %h%
+        WinGetTitle, tt, ahk_id %h%
+        if (h && pid == KasaPID)
+        {
+            Log("POWROT: Esc w oknie: " tt)
+            Send, {Esc}
+            Czekaj("PoEsc")
+        }
+        else
+        {
+            WinActivate, ahk_id %FirmaHwnd%
+            WinWaitActive, ahk_id %FirmaHwnd%,, 1
+        }
+    }
+    Log("POWROT: nie udalo sie wrocic do okna firm.")
+    return WinActive("ahk_id " FirmaHwnd) ? true : false
 }
 
 ; Zapisuje opis aktywnego okna i jego pol (do kalibracji i diagnostyki).

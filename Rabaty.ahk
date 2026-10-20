@@ -284,28 +284,43 @@ GlowneWprowadzanie()
         }
 
         wynik := WprowadzFirme(KasaHwnd, curID, curRabat, Probny)
-        if (wynik == -2)
-        {
-            ; firma nie otworzyla listy kart - zapytaj czy pominac
-            DodajDoRaportu(curID, curRabat, 0, 0, 0, "NIE ZNALEZIONO FIRMY / brak listy kart")
-            SoundBeep, 500, 300
-            MsgBox, 262148, Nie znaleziono firmy, Firma %curID%: po F10 nie otworzyla sie lista kart.`n`nUstaw w kasie z powrotem okno z lista firm i wybierz:`n[Tak] = pomin te firme i jedz dalej`n[Nie] = zatrzymaj
-            IfMsgBox, No
-            {
-                Koniec := "ZATRZYMANO na firmie " curID " (nie znaleziono)"
-                break
-            }
-            continue
-        }
         if (wynik < 0)
         {
-            DodajDoRaportu(curID, curRabat, 0, OstPominiete10, OstPominiete0, "BLAD: " StrReplace(OstatniBlad, "`n", " "), OstPB, OstZmienione10, OstUwagi)
-            Koniec := "ZATRZYMANO na firmie " curID " - blad"
-            ZapiszRaport(Koniec)
-            Przetwarzanie := false
-            SoundBeep, 500, 400
-            MsgBox, 16, Zatrzymano, %OstatniBlad%`n`nProgram zatrzymal sie, zeby nic nie wpisac w zle miejsce. Sprawdz okna w kasie.`nSzczegoly: rabaty_log.txt i raport.`nPrzy nastepnym Ctrl+S mozna wznowic od tej firmy.
-            return
+            Blad := StrReplace(OstatniBlad, "`n", " ")
+            ; najpierw wracamy w kasie do okna firm (Esc na otwartych oknach kasy)
+            Wrocil := PowrotDoFirm(KasaHwnd)
+            if (wynik == -3)
+            {
+                DodajDoRaportu(curID, curRabat, OstZmienioneKart, OstPominiete10, OstPominiete0, "PRZERWANO przez uzytkownika", OstPB, OstZmienione10, OstUwagi)
+                Koniec := "PRZERWANO przez uzytkownika na firmie " curID
+                break
+            }
+            stat := (wynik == -2 ? "BRAK KART / NIE ZNALEZIONO FIRMY" : "BLAD") (Wrocil ? " - pominieto" : " - ZATRZYMANO") ": " Blad
+            if (OstZmienioneKart > 0)
+                stat .= " (zdazono zmienic kart: " OstZmienioneKart ")"
+            DodajDoRaportu(curID, curRabat, OstZmienioneKart, OstPominiete10, OstPominiete0, stat, OstPB, OstZmienione10, OstUwagi)
+            if (!Wrocil)
+            {
+                ; blad krytyczny - nie wiadomo, gdzie jestesmy w kasie
+                Koniec := "ZATRZYMANO na firmie " curID " - blad krytyczny"
+                ZapiszRaport(Koniec)
+                Przetwarzanie := false
+                SoundBeep, 500, 400
+                MsgBox, 16, Zatrzymano, %OstatniBlad%`n`nNie udalo sie wrocic do okna z lista firm, wiec program sie zatrzymal, zeby nic nie wpisac w zle miejsce. Sprawdz okna w kasie.`nSzczegoly: rabaty_log.txt i raport.`nPrzy nastepnym Ctrl+S mozna wznowic od tej firmy.
+                return
+            }
+            if !Probny
+                IniWrite, % index + 1, %PlikPostepu%, Postep, Nastepna
+            SoundBeep, 500, 300
+            tytul := (wynik == -2) ? "Firma bez kart" : "Blad - firma pominieta"
+            MsgBox, 262193, %tytul%, Firma %curID%:`n%OstatniBlad%`n`nFirma zostala pominieta i wpisana do raportu.`n`n[OK] = jedz dalej z nastepna firma`n[Anuluj] = zatrzymaj program
+            IfMsgBox, Cancel
+            {
+                Koniec := "PRZERWANO przez uzytkownika po bledzie na firmie " curID
+                break
+            }
+            Aktywuj(KasaHwnd)
+            continue
         }
         DodajDoRaportu(curID, curRabat, wynik, OstPominiete10, OstPominiete0, "OK", OstPB, OstZmienione10, OstUwagi)
         TrayTip, Rabaty, Firma %curID%: kart: %wynik%`, pominiete PB/10/0: %OstPB%/%OstPominiete10%/%OstPominiete0%, 2
@@ -320,7 +335,7 @@ GlowneWprowadzanie()
 
     doSpr := 0
     for i, r in Raport
-        if (r.uwaga != "" || InStr(r.status, "NIE ZNALEZIONO"))
+        if (r.uwaga != "" || (r.status != "OK" && r.status != "pominieta przez uzytkownika"))
             doSpr++
     SoundBeep, 1200, 300
     MsgBox, 64, Koniec, % Koniec "`n`nZmienione karty" (Probny ? " (tryb probny - zmienilby)" : "") ": " LiczbaZmienionych "`nFirmy do sprawdzenia recznie: " doSpr "`n`nZaraz otworzy sie raport."
