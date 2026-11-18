@@ -310,9 +310,9 @@ SkopiujZaznaczone()
     return w
 }
 
-; Wprowadza rabat dla wszystkich kart jednej firmy (logika jak w starym programie "nowa zmiana cen.exe"):
+; Wprowadza rabat dla wszystkich kart jednej firmy:
 ; ID, Enter, F10 (lista kart). Dla karty nr k: poczatek listy + k razy strzalka w dol, F4, pole rabatu,
-; rabat, F10 (zapis). Po zamknieciu karty lista w PetrolStationCL wraca na gore - dlatego pozycja liczona od gory.
+; rabat, F10 (zapis). Po zamknieciu karty lista w kasie wraca na gore - dlatego pozycja liczona od gory.
 ; Karty z rabatem 10 lub 0 (benzyna / wylaczone) sa pomijane bez zmian.
 ; Koniec listy = otworzyla sie ta sama karta co poprzednio (strzalki nie maja juz gdzie zejsc).
 ; Zwraca liczbe zmienionych kart albo -1 przy bledzie (opis w OstatniBlad).

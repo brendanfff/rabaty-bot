@@ -1,6 +1,6 @@
 # rabaty-bot
 
-Program do wprowadzania rabatow w PetrolStationCL. Gotowy `Rabaty.exe` jest w zakladce **Releases** (budowany automatycznie przy kazdym pushu na `main`).
+Program do wprowadzania rabatow w programie kasowym. Gotowy `Rabaty.exe` jest w zakladce **Releases** (budowany automatycznie przy kazdym pushu na `main`).
 
 ## Klawisze
 - **Ctrl + S** - start (wybor pliku .txt)

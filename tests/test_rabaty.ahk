@@ -22,7 +22,7 @@ Sprawdz(Firmy[7].rabat == "0", "rabat 0 zostaje 0")
 Sprawdz(Firmy[1].id == "1001" && Firmy[1].rabat == "10", "firma 1 = 1001 / 10")
 Sprawdz(Firmy[3].id == "1003" && Firmy[3].rabat == "30", "spacje obciete: 1003 / 30")
 Sprawdz(Firmy[4].id == "A+1#", "ID ze znakami specjalnymi")
-Sprawdz(Firmy[5].id == "5880", "ID w cudzyslowie (jak w starym programie)")
+Sprawdz(Firmy[5].id == "1234", "ID w cudzyslowie")
 Sprawdz(PoliczDziesiatki(Firmy) == 1, "liczba rabatow 10 gr = 1")
 
 ; --- Test 2: bledne pliki ---
@@ -53,14 +53,14 @@ Sprawdz(w3 == 2, "1003: zmieniono 2 karty (jest: " w3 ") " OstatniBlad)
 Ust.PoleRabatu := "Edit6", Ust.OknoKarty := "Modyfikacja karty"
 w2 := WprowadzFirme(FirmaHwnd, "1002", "20")
 Sprawdz(w2 == 1, "1002 (kalibracja): zmieniono 1 karte (jest: " w2 ") " OstatniBlad)
-; lista wraca na gore po kazdym zapisie (jak prawdopodobnie w PetrolStationCL)
+; lista wraca na gore po kazdym zapisie (jak prawdopodobnie w kasie)
 Ust.PoleRabatu := "", Ust.OknoKarty := ""
 w5 := WprowadzFirme(FirmaHwnd, "1004", "25")
 Sprawdz(w5 == 4, "1004 (lista wraca na gore): zmieniono 4 karty (jest: " w5 ") " OstatniBlad)
 ; po zapisie kursor ucieka z tabeli (strzalka nie dziala)
 w6 := WprowadzFirme(FirmaHwnd, "1005", "41")
 Sprawdz(w6 == 3, "1005 (kursor ucieka z tabeli): zmieniono 3 karty (jest: " w6 ") " OstatniBlad)
-; jak w PetrolStationCL: lista wraca na gore po kazdym zamknieciu karty (zapis i Esc), karty 10 i 0 pomijane
+; jak w kasie: lista wraca na gore po kazdym zamknieciu karty (zapis i Esc), karty 10 i 0 pomijane
 w7 := WprowadzFirme(FirmaHwnd, "1006", "41")
 Sprawdz(w7 == 4 && OstZmienione10 == 1, "1006 (powrot na gore, 10 bez PB i 0 zmieniane): zmieniono 4 karty (jest: " w7 ") " OstatniBlad)
 ; nieistniejaca firma - musi sie bezpiecznie zatrzymac
